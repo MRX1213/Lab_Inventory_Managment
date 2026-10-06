@@ -1,0 +1,50 @@
+DATABASE REqs:
+
+Users:
+	admins
+	lab workers (students)
+	full-time lab workers
+
+Spaces:
+	Makerspace
+	Project room
+
+Item classes:
+	In makerspace:
+		3D printer items:
+			Flash drives <-- all of those should be tables with items in them
+			Filamnet
+			Printer parts
+		Laser cutter items:
+			Materials to print on
+			Print add-ons <-- like a bottle holder to print on cylindrical objects
+			Printer keys <-- turns the machinbe on and off
+		Shelf items (misc):
+			Screwdrivers
+			Printer Ink
+			Batteries
+			Fixit packs
+			Cables <-- might need sub classes for different cable (HDMIs, USBs, Arduino cables, etc.)
+			Metal Soldering materials
+			...Other items come soon
+	In Project room:
+		Shelf items (misc):
+			Sockets
+			Drills
+			Impact drives
+			Impact drive heads
+			Saws
+			Masks
+			Glasses
+			Engines <-- literal gas engines
+		Side Shelfs (on wall):
+			Presure mesurment sets
+			Length mesurment sets
+			Liquid mesurment sets
+			Glass soldering sets
+			Glass soldering materials
+		Wood cutting station:
+			Wood <-- might need to be split into wood classes
+			Saws
+			Wood Holders
+			
