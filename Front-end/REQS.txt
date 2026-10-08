@@ -1,0 +1,147 @@
+FRONT-END REQS:
+
+Users:
+    Admin
+    Full-time lab workers
+    Student workers
+
+Login / Authorization:
+    Email and password login
+    Role-based access to pages and functions
+    Password reset:
+        Verification code sent to email or phone number
+        Code verification
+        New password creation
+    Logout
+    Blocked accounts cannot log in
+
+Dashboard:
+    Inventory summary:
+        Total items
+        Low-stock items
+        Out-of-stock items
+    Recent inventory changes
+    Supply requests:
+        Pending
+        Approved
+        Rejected
+    Navigation:
+        Dashboard
+        Inventory
+        Supply Requests
+        Locations
+        User Management (Admin only)
+        Profile
+
+Inventory:
+    Spaces:
+        Makerspace
+        Project room
+    Browse inventory by:
+        Space
+        Location
+        Group
+        Subgroup
+    Display item information:
+        Item name
+        Item ID
+        Group / subgroup
+        Location
+        Quantity
+        Optional description / notes
+    Inventory actions (All users):
+        Add new item
+        Edit existing item
+        Delete item (with confirmation)
+        Increase/decrease quantity
+        Move item to another location
+    Search:
+        Search by item name or ID
+        Filter by space, group, subgroup, and location
+        Filter low-stock / out-of-stock items
+
+Groups / Subgroups:
+    View group hierarchy
+    Create new groups
+    Create new subgroups
+    Edit names
+    Delete groups/subgroups (with confirmation)
+    Prevent accidental removal of groups containing items
+
+Locations:
+    View all spaces and locations
+    Add new location
+    Edit location
+    Delete location (with confirmation)
+    Assign items to locations
+    Existing spaces:
+        Makerspace
+        Project room
+
+Supply Requests:
+    All users:
+        Create new request
+        Select existing item OR specify a new item
+        Specify requested quantity
+        Enter request reason / notes
+        Submit request
+        View request status
+    Admin and Full-time lab workers:
+        View pending requests
+        Approve requests
+        Reject requests
+        Add optional decision notes
+    Request statuses:
+        Pending
+        Approved
+        Rejected
+    Optional future statuses:
+        Ordered
+        Received
+        Cancelled
+
+User Management (Admin only):
+    View all accounts
+    Create new account:
+        Name
+        Position / Role
+        Email
+        Phone number
+        Password
+    Edit account information
+    Change assigned role
+    Block / unblock account
+    Delete account (with confirmation)
+    Search and filter accounts by name, role, or status
+
+User Profile:
+    View own account information:
+        Name
+        Position / Role
+        Email
+        Phone number
+    Change password
+    Password reset using email or phone verification code
+
+Interface Requirements:
+    Responsive layout for desktops, tablets, and phones
+    Consistent navigation and page design
+    Form validation
+    Loading and error states
+    Confirmation dialogs for destructive actions
+    Success / error notifications
+    Disabled or hidden unauthorized actions
+    Accessible labels and keyboard-friendly controls
+
+Recommended: <-- For later
+    Inventory change history
+    Low-stock thresholds
+    Request creation / decision timestamps
+    Notifications for request status changes
+    Pagination for long item lists
+
+Integration: <-- For later
+    Connect front-end to backend API
+    Enforce all role permissions on backend as well as front-end
+    Never store or display plaintext passwords
+    Ensure quantity updates stay synchronized
