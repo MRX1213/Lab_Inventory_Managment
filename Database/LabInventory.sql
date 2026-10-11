@@ -58,7 +58,7 @@ CREATE TABLE Items (
     TrackingType    VARCHAR(10) NOT NULL DEFAULT 'Unit'
                     CHECK (TrackingType IN ('Unit','Bulk')),
     QuantityOnHand  INT NOT NULL DEFAULT 1 CHECK (QuantityOnHand >= 0),
-    ReorderLevel    INT NULL,
+    ReorderLevel    INT NULL,          /* <-- interesting thig */
     AssetTag        NVARCHAR(50) NULL,
     Status          VARCHAR(20) NOT NULL DEFAULT 'Available'
                     CHECK (Status IN ('Available','CheckedOut','Broken','Lost','Retired')),
