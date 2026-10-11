@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lab Inventory - Dashboard</title>
+  <link rel="stylesheet" href="css/layout.css">
+</head>
+<body>
+  <div class="page-wrapper">
+    <!-- side menu, same on every page after this -->
+    <nav class="sidebar">
+      <h2>Lab Inventory</h2>
+      <ul>
+        <li><a href="dashboard.html" class="active">Dashboard</a></li>
+        <li><a href="inventory.html">Inventory</a></li>
+        <li><a href="requests.html">Supply Requests</a></li>
+        <li><a href="locations.html">Locations</a></li>
+        <li><a href="users.html">User Management</a></li>
+        <li><a href="profile.html">Profile</a></li>
+      </ul>
+    </nav>
+
+    <!-- main content -->
+    <main class="content">
+      <h1>Dashboard</h1>
+
+      <section class="summary-cards">
+        <div class="card">
+          <p class="card-label">Total Items</p>
+          <p class="card-number" id="total-items">--</p>
+        </div>
+        <div class="card">
+          <p class="card-label">Low Stock</p>
+          <p class="card-number" id="low-stock">--</p>
+        </div>
+        <div class="card">
+          <p class="card-label">Out of Stock</p>
+          <p class="card-number" id="out-of-stock">--</p>
+        </div>
+      </section>
+
+      <section class="requests-summary">
+        <h2>Supply Requests</h2>
+        <p>Pending: <span id="pending-count">--</span></p>
+        <p>Approved: <span id="approved-count">--</span></p>
+        <p>Rejected: <span id="rejected-count">--</span></p>
+      </section>
+
+      <section class="recent-changes">
+        <h2>Recent Inventory Changes</h2>
+        <ul id="recent-changes-list">
+          <li>No data yet - backend not connected.</li>
+        </ul>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/dashboard.js"></script>
+</body>
+</html>
