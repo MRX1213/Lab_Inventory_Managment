@@ -1,0 +1,85 @@
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    text-align: left;
+    color: #8b949e;
+    padding: 10px 8px;
+    border-bottom: 1px solid #30363d;
+}
+
+td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #21262d;
+}
+
+.Panel {
+    background-color: #161b22;
+    border: 1px solid #30363d;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.field {
+    flex: 1;
+    min-width: 150px;
+}
+
+.field label {
+    display: block;
+    font-size: 13px;
+    color: #8b949e;
+    margin-bottom: 6px;
+}
+
+.field input, .field select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    background-color: #0d1117;
+    color: #e6e6e6;
+}
+
+
+
+.inventory-layout {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.filters-panel {
+    width: 260px;
+    flex-shrink: 0;
+}
+
+.table-panel {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+}
+
+.filters-panel .filters {
+    flex-direction: column;
+}
+
+
+@media (max-width: 800px) {
+    .inventory-layout {
+        flex-direction: column;
+    }
+
+    .filters-panel {
+        width: 100%;
+    }
+}
