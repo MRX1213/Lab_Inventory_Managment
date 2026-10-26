@@ -1,3 +1,5 @@
+USE Master;
+Drop DATABASE LabInventory;
 CREATE DATABASE LabInventory;
 GO
 USE LabInventory;
@@ -70,28 +72,28 @@ CREATE UNIQUE INDEX UX_Items_AssetTag ON Items(AssetTag) WHERE AssetTag IS NOT N
 CREATE INDEX IX_Items_Category ON Items(CategoryID);
 CREATE INDEX IX_Items_Area     ON Items(AreaID);
  
-/* ---------- TRANSACTIONS ---------- */
-CREATE TABLE InventoryTransactions (
-    TransactionID   BIGINT IDENTITY(1,1) PRIMARY KEY,
+/* ---------- Logs ---------- */
+CREATE TABLE InventoryLogs (
+    LogID   BIGINT IDENTITY(1,1) PRIMARY KEY,
     ItemID          INT NOT NULL REFERENCES Items(ItemID),
     UserID          INT NOT NULL REFERENCES Users(UserID),      -- who took/returned/used it
     ProcessedByID   INT NULL REFERENCES Users(UserID),          -- worker who handled it
-    TransactionType VARCHAR(15) NOT NULL
-                    CHECK (TransactionType IN ('CheckOut','CheckIn','Consume','Restock','Adjust')),
+    LogType VARCHAR(15) NOT NULL
+                    CHECK (LogType IN ('CheckOut','CheckIn','Consume','Restock','Adjust')),
     Quantity        INT NOT NULL DEFAULT 1,
-    TransactionDate DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+    LogDate DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
     DueDate         DATETIME2 NULL,
     Notes           NVARCHAR(500) NULL
 );
-CREATE INDEX IX_Trans_Item ON InventoryTransactions(ItemID, TransactionDate);
-CREATE INDEX IX_Trans_User ON InventoryTransactions(UserID, TransactionDate);
+CREATE INDEX IX_Log_Item ON InventoryLogs(ItemID, LogDate);
+CREATE INDEX IX_Log_User ON InventoryLogs(UserID, LogDate);
 GO
  
 /* ============================================================
    SEED DATA
    ============================================================ */
  
-INSERT INTO Roles (RoleName) VALUES ('Admin'), ('LabWorker'), ('FullTimeLabWorker');
+INSERT INTO Roles (RoleName) VALUES ('Admin');
  
 INSERT INTO Spaces (SpaceName) VALUES ('Makerspace'), ('Project Room');
  
@@ -160,7 +162,7 @@ FROM (VALUES
     ('Project Room','Shelf','Glasses'),
     ('Project Room','Shelf','Engines'),
     ('Project Room','Side Shelves','Pressure Measurement Sets'),
-    ('Project Room','Side Shelves','Length Measurement Sets'),
+    ('Project Room','Side Shelves','Length Measurement fSets'),
     ('Project Room','Side Shelves','Liquid Measurement Sets'),
     ('Project Room','Side Shelves','Glass Soldering Sets'),
     ('Project Room','Side Shelves','Glass Soldering Materials'),
