@@ -98,10 +98,11 @@ function makeCell(text) {
     return cell;
 }
 
-function makeButton(text, onClick) {
+// small table button (danger = red, for Delete)
+function makeButton(text, onClick, danger) {
     var button = document.createElement("button");
     button.type = "button";
-    button.className = "btn";
+    button.className = danger ? "action-btn action-btn--danger" : "action-btn";
     button.textContent = text;
     button.addEventListener("click", onClick);
     return button;
@@ -121,12 +122,49 @@ document.querySelector("main h1").after(messageBox);
 
 function showMessage(text, type) {
     messageBox.textContent = text;
-    messageBox.className = "message " + type;
+    messageBox.className = "notice notice--" + type;
     messageBox.hidden = false;
 }
 
 function val(id) {
     return document.getElementById(id).value.trim();
+}
+
+// styled "are you sure?" popup (uses the team's modal styles)
+// onYes runs only if they click Delete
+function confirmDelete(title, onYes) {
+    var overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    overlay.innerHTML =
+        '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">' +
+        '<h2 id="modal-title"></h2>' +
+        '<p>This can\'t be undone.</p>' +
+        '<div class="modal-actions">' +
+        '<button type="button" class="btn-secondary">Cancel</button>' +
+        '<button type="button" class="btn-danger">Delete</button>' +
+        '</div></div>';
+    overlay.querySelector("h2").textContent = title;
+    document.body.appendChild(overlay);
+
+    var cancelButton = overlay.querySelector(".btn-secondary");
+    var deleteButton = overlay.querySelector(".btn-danger");
+    cancelButton.focus();
+
+    function close() {
+        overlay.remove();
+        document.removeEventListener("keydown", onKey);
+    }
+    // Escape key closes it too
+    function onKey(event) {
+        if (event.key === "Escape") close();
+    }
+    document.addEventListener("keydown", onKey);
+
+    cancelButton.addEventListener("click", close);
+    deleteButton.addEventListener("click", function () {
+        close();
+        onYes();
+    });
 }
 
 
@@ -215,7 +253,9 @@ function showItems() {
         row.appendChild(makeCell(qtyText));
         row.appendChild(makeCell(item.notes));
 
-        var actions = document.createElement("td");
+        var cell = document.createElement("td");
+        var actions = document.createElement("div");
+        actions.className = "row-actions";
         actions.appendChild(makeButton("+", function () { changeQty(item, 1); }));
         actions.appendChild(makeButton("-", function () { changeQty(item, -1); }));
         actions.appendChild(makeButton("Edit", function () { editItem(item); }));
@@ -223,8 +263,9 @@ function showItems() {
             editItem(item);
             document.getElementById("item-location").focus();
         }));
-        actions.appendChild(makeButton("Delete", function () { deleteItem(item); }));
-        row.appendChild(actions);
+        actions.appendChild(makeButton("Delete", function () { deleteItem(item); }, true));
+        cell.appendChild(actions);
+        row.appendChild(cell);
 
         tableBody.appendChild(row);
     });
@@ -233,6 +274,7 @@ function showItems() {
         var row = document.createElement("tr");
         var cell = makeCell("No items match these filters.");
         cell.colSpan = 7;
+        cell.className = "empty-state";
         row.appendChild(cell);
         tableBody.appendChild(row);
     }
@@ -302,11 +344,12 @@ itemForm.addEventListener("submit", function (event) {
 itemForm.querySelector("button[type='button']").addEventListener("click", resetItemForm);
 
 function deleteItem(item) {
-    if (!confirm("Delete " + item.name + "?")) return;
-    items.splice(items.indexOf(item), 1); // TODO: send to backend
-    resetItemForm();
-    showMessage("Deleted " + item.name + ".", "success");
-    refreshPage();
+    confirmDelete("Delete " + item.name + "?", function () {
+        items.splice(items.indexOf(item), 1); // TODO: send to backend
+        resetItemForm();
+        showMessage("Deleted " + item.name + ".", "success");
+        refreshPage();
+    });
 }
 
 
@@ -338,13 +381,16 @@ function addGroupRow(tableBody, group, label, count) {
     var row = document.createElement("tr");
     row.appendChild(makeCell(label));
     row.appendChild(makeCell(count));
-    var actions = document.createElement("td");
+    var cell = document.createElement("td");
+    var actions = document.createElement("div");
+    actions.className = "row-actions";
     if (group.parentId === null) {
         actions.appendChild(makeButton("+ Subgroup", function () { openGroupForm(null, group.id); }));
     }
     actions.appendChild(makeButton("Rename", function () { openGroupForm(group, group.parentId); }));
-    actions.appendChild(makeButton("Delete", function () { deleteGroup(group); }));
-    row.appendChild(actions);
+    actions.appendChild(makeButton("Delete", function () { deleteGroup(group); }, true));
+    cell.appendChild(actions);
+    row.appendChild(cell);
     tableBody.appendChild(row);
 }
 
@@ -388,12 +434,14 @@ function deleteGroup(group) {
     // don't delete a group that still has items or subgroups
     if (countItems("groupId", group.id) > 0) return showMessage("Can't delete " + group.name + ". It still has items. Move them first.", "error");
     if (getSubgroups(group.id).length > 0) return showMessage("Can't delete " + group.name + ". Delete its subgroups first.", "error");
-    if (!confirm("Delete " + groupName(group.id) + "?")) return;
-    groups.splice(groups.indexOf(group), 1); // TODO: send to backend
-    groupForm.hidden = true;
-    showMessage("Deleted " + group.name + ".", "success");
-    refreshPage();
+    confirmDelete("Delete " + groupName(group.id) + "?", function () {
+        groups.splice(groups.indexOf(group), 1); // TODO: send to backend
+        groupForm.hidden = true;
+        showMessage("Deleted " + group.name + ".", "success");
+        refreshPage();
+    });
 }
+
 
 // ============================================================
 // 7. START
