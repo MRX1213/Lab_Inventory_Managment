@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/supply-requests.css">
+  <title>Lab Inventory - Supply Requests</title>
+</head>
+<body>
+  <div class="page-wrapper">
+    <aside class="sidebar">
+      <h2>Lab Inventory</h2>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="inventory.html">Inventory</a></li>
+        <li><a href="supply-requests.html" class="active">Supply Requests</a></li>
+        <li><a href="locations.html">Locations</a></li>
+        <li><a href="user-management.html">User Management</a></li>
+        <li><a href="profile.html">Profile</a></li>
+      </ul>
+    </aside>
+
+    <main class="content">
+      <div class="page-header">
+        <h1>Supply Requests</h1>
+        <button type="button" class="btn-primary" id="new-request-btn">+ New request</button>
+      </div>
+
+      <div class="test-bar">
+        <label for="test-as">Testing only: view this page as</label>
+        <select id="test-as">
+          <option value="student@lab.edu">Test Student (Student Worker)</option>
+          <option value="fulltime@lab.edu">Test Worker (Full-time Lab Worker)</option>
+          <option value="admin@lab.edu">Test Admin (Admin)</option>
+        </select>
+      </div>
+
+      <p id="page-message" role="status" hidden></p>
+
+      <section class="summary-cards">
+        <div class="card">
+          <p class="card-label">Pending</p>
+          <p class="card-number" id="pending-count">--</p>
+        </div>
+        <div class="card">
+          <p class="card-label">Approved</p>
+          <p class="card-number" id="approved-count">--</p>
+        </div>
+        <div class="card">
+          <p class="card-label">Rejected</p>
+          <p class="card-number" id="rejected-count">--</p>
+        </div>
+      </section>
+
+      <div class="toolbar">
+        <label for="search-box" class="sr-only">Search by item or person</label>
+        <input type="text" id="search-box" placeholder="Search by item or person">
+
+        <label for="filter-status" class="sr-only">Status</label>
+        <select id="filter-status">
+          <option value="all">All statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="Approved">Approved</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+      </div>
+
+      <h2 id="table-title">Requests</h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>Requested by</th>
+            <th>Reason</th>
+            <th>Status</th>
+            <th>Decision</th>
+            <th class="reviewer-only">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="request-table-body">
+        </tbody>
+      </table>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="request-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="request-modal-title">
+      <h2 id="request-modal-title">New request</h2>
+      <form id="request-form" novalidate>
+        <fieldset>
+          <legend>What do you need?</legend>
+          <label><input type="radio" name="request-type" value="existing" checked> An item we already have</label>
+          <label><input type="radio" name="request-type" value="new"> Something new</label>
+        </fieldset>
+
+        <div id="existing-item-field">
+          <label for="request-item">Item</label>
+          <select id="request-item"></select>
+        </div>
+
+        <div id="new-item-field" hidden>
+          <label for="request-new-name">New item name</label>
+          <input type="text" id="request-new-name">
+        </div>
+
+        <label for="request-qty">Quantity needed</label>
+        <input type="number" id="request-qty" min="1" value="1">
+
+        <label for="request-reason">Reason / notes</label>
+        <textarea id="request-reason"></textarea>
+
+        <p class="notice notice--error" id="request-error" hidden></p>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="request-cancel-btn">Cancel</button>
+          <button type="submit" class="btn-primary">Submit request</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="decision-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="decision-title">
+      <h2 id="decision-title">Approve request</h2>
+      <form id="decision-form">
+        <label for="decision-notes">Decision notes (optional)</label>
+        <textarea id="decision-notes"></textarea>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="decision-cancel-btn">Cancel</button>
+          <button type="submit" class="btn-primary" id="decision-save-btn">Approve</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/supply-requests.js"></script>
+</body>
+</html>
