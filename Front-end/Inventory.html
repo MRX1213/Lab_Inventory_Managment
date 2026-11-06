@@ -24,7 +24,7 @@
         <main class="content">
             <h1>Inventory</h1>
         
-            <form id="item-form">
+            <form id="item-form" data-roles="Admin, Full-time Lab Worker">
                 <div class="panel">
                     <h2>Add Item</h2>
                     <div class="filters">
@@ -137,7 +137,7 @@
                 </section>
             </div>
 
-            <div class="panel" id="groups-section">
+            <div class="panel" id="groups-section" data-roles="Admin, Full-time Lab Worker">
                 <div class="panel-header">
                     <h2>Groups</h2>
                     <button type="button" class="btn-primary" id="add-group-btn">+ Add group</button>
@@ -176,6 +176,8 @@
             </div>
         </main>
     </div>
+
+    <script src="js/current-user.js"></script>
     <script src="js/inventory.js"></script>
 </body>
 </html>

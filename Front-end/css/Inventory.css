@@ -123,3 +123,25 @@ td:last-child {
     border: 1px solid #da3633;
     color: #f85149;
 }
+
+/* who is logged in + Log Out, at the bottom of the sidebar (added by js/current-user.js) */
+.sidebar-user {
+  margin-top: 24px;
+  padding: 16px 8px 0;
+  border-top: 1px solid #30363d;
+}
+
+.sidebar-user-name {
+  color: #e6e6e6;
+  font-size: 14px;
+}
+
+.sidebar-user-role {
+  color: #8b949e;
+  font-size: 12px;
+  margin: 2px 0 12px;
+}
+
+.sidebar-user .btn-secondary {
+  width: 100%;
+}
