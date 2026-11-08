@@ -1,3 +1,7 @@
+// auth.js must run first — requireLogin() sends you back to login.html if nobody's logged in
+let currentUser = requireLogin();
+if (currentUser) initSidebarForRole(currentUser);
+
 // Locations page — placeholder data only, not connected to the real database yet.
 // Once the API is ready, swap the mock `locations` array below for real fetch() calls
 // to the Locations table (LocationID, Space, Name). "itemCount" below is a placeholder

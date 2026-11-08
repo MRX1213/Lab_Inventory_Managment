@@ -1,14 +1,18 @@
+// auth.js must run first — requireLogin() sends you back to login.html if nobody's logged in
+let currentUser = requireLogin();
+if (currentUser) initSidebarForRole(currentUser);
+
 // Profile page — placeholder data only, not connected to the real database/session yet.
 // Once login is wired to the real API, "currentUser" below should come from the logged-in
 // session instead of being hardcoded, and both forms should PUT/PATCH to the real
 // /api/users/me and /api/users/me/password endpoints.
 
-let currentUser = {
-  firstName: "Deep",
-  lastName: "Patel",
-  email: "deep.patel@example.edu",
+let currentUserInfo = {
+  firstName: currentUser ? currentUser.firstName : "Deep",
+  lastName: currentUser ? currentUser.lastName : "Patel",
+  email: currentUser ? currentUser.email : "deep.patel@example.edu",
   phone: "814-555-0101",
-  role: "Admin",
+  role: currentUser ? currentUser.role : "Admin",
   // NOTE: no password/hash kept here on purpose — same rule as User Management:
   // never store or display a real/plaintext password client-side.
 };
@@ -38,21 +42,21 @@ function hideStatus(el) {
 }
 
 function fillInfoForm() {
-  firstNameField.value = currentUser.firstName;
-  lastNameField.value = currentUser.lastName;
-  emailField.value = currentUser.email;
-  phoneField.value = currentUser.phone || "";
-  roleField.value = currentUser.role;
+  firstNameField.value = currentUserInfo.firstName;
+  lastNameField.value = currentUserInfo.lastName;
+  emailField.value = currentUserInfo.email;
+  phoneField.value = currentUserInfo.phone || "";
+  roleField.value = currentUserInfo.role;
 }
 
 infoForm.addEventListener("submit", (e) => {
   e.preventDefault();
   hideStatus(infoStatus);
 
-  currentUser.firstName = firstNameField.value.trim();
-  currentUser.lastName = lastNameField.value.trim();
-  currentUser.email = emailField.value.trim();
-  currentUser.phone = phoneField.value.trim();
+  currentUserInfo.firstName = firstNameField.value.trim();
+  currentUserInfo.lastName = lastNameField.value.trim();
+  currentUserInfo.email = emailField.value.trim();
+  currentUserInfo.phone = phoneField.value.trim();
   // Role is read-only here on purpose — only an admin changes roles, via User Management.
 
   // TODO: PATCH /api/users/me with { firstName, lastName, email, phone }
@@ -105,7 +109,7 @@ sendCodeBtn.addEventListener("click", () => {
   hideStatus(resetStatus);
 
   pendingResetCode = String(Math.floor(100000 + Math.random() * 900000));
-  const destination = resetMethod.value === "email" ? currentUser.email : (currentUser.phone || "your phone on file");
+  const destination = resetMethod.value === "email" ? currentUserInfo.email : (currentUserInfo.phone || "your phone on file");
 
   resetStep1.style.display = "none";
   resetStep2.style.display = "block";

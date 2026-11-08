@@ -1,3 +1,7 @@
+// auth.js must run first — requireLogin() sends you back to login.html if nobody's logged in
+var currentUser = requireLogin();
+if (currentUser) initSidebarForRole(currentUser);
+
 // inventory page: items, groups/subgroups, and locations
 // sample data until the backend is connected (changes reset on refresh)
 

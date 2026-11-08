@@ -1,5 +1,11 @@
 // get the form from the page
 var loginForm = document.getElementById("login-form");
+var errorMessage = document.getElementById("error-message");
+
+// if already logged in, skip straight to the dashboard
+if (getCurrentUser()) {
+  window.location.href = "dashboard.html";
+}
 
 // run this when the form is submitted
 loginForm.addEventListener("submit", function (event) {
@@ -7,7 +13,6 @@ loginForm.addEventListener("submit", function (event) {
 
   var email = document.getElementById("email").value;
   var password = document.getElementById("password").value;
-  var errorMessage = document.getElementById("error-message");
 
   errorMessage.textContent = "";
 
@@ -17,15 +22,24 @@ loginForm.addEventListener("submit", function (event) {
     return;
   }
 
-  // there is no backend connected yet, so this is just a placeholder
-  // later this part will send the email and password to the server
-  console.log("Login attempt with email: " + email);
-  errorMessage.textContent = "Backend not connected yet - this is a frontend placeholder.";
+  // checkLogin() comes from auth.js — checks against the mock ACCOUNTS list
+  // until the real login API exists
+  var account = checkLogin(email, password);
+
+  if (account === null) {
+    errorMessage.textContent = "Incorrect email or password.";
+    return;
+  }
+
+  // setCurrentUser() comes from auth.js — saves who's logged in (minus the password)
+  setCurrentUser(account);
+  window.location.href = "dashboard.html";
 });
 
 // run this when "forgot password" is clicked
 var forgotLink = document.getElementById("forgot-password-link");
 forgotLink.addEventListener("click", function (event) {
   event.preventDefault();
-  alert("Password reset is not built yet.");
+  // TODO: wire to the real password-reset flow once the backend exists
+  errorMessage.textContent = "Password reset isn't available yet - contact an Admin.";
 });

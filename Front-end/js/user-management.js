@@ -1,3 +1,7 @@
+// auth.js must run first — requireLogin() sends you back to login.html if nobody's logged in
+let currentUser = requireLogin();
+if (currentUser) initSidebarForRole(currentUser);
+
 // User Management page — placeholder data only, not connected to the real database yet.
 // Once Jaden's API is ready, swap the mock `users` array + localStorage below for real fetch() calls
 // to the Users/Roles tables (UserID, FirstName, LastName, Email, Phone, RoleID, IsActive).

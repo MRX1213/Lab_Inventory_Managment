@@ -123,3 +123,36 @@ body {
   color: #8b949e;
   padding: 6px 0;
 }
+
+.sidebar-footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #30363d;
+}
+
+.sidebar-user {
+  font-size: 13px;
+  color: #c9d1d9;
+  margin-bottom: 10px;
+  padding: 0 8px;
+}
+
+.sidebar-user span {
+  color: #8b949e;
+  font-size: 12px;
+}
+
+.btn-logout {
+  width: 100%;
+  background: transparent;
+  border: 1px solid #30363d;
+  color: #f85149;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.btn-logout:hover {
+  background: rgba(218,54,51,0.12);
+  border-color: #f85149;
+}
