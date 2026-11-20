@@ -1,3 +1,6 @@
+/* inventory page styles (goes after layout.css and components.css) */
+
+/* the dark boxes around each section */
 .panel {
     background-color: #161b22;
     border: 1px solid #30363d;
@@ -6,6 +9,7 @@
     margin-bottom: 20px;
 }
 
+/* title on the left, button on the right */
 .panel-header {
     display: flex;
     justify-content: space-between;
@@ -13,6 +17,7 @@
     margin-bottom: 14px;
 }
 
+/* form fields side by side */
 .filters {
     display: flex;
     flex-wrap: wrap;
@@ -46,6 +51,7 @@
     margin-top: 16px;
 }
 
+/* filters on the left, item table on the right */
 .inventory-layout {
     display: flex;
     gap: 20px;
@@ -67,6 +73,7 @@
     flex-direction: column;
 }
 
+/* phones: stack the filters on top of the table */
 @media (max-width: 800px) {
     .inventory-layout {
         flex-direction: column;
@@ -77,6 +84,7 @@
     }
 }
 
+/* who is logged in + Log Out, at the bottom of the sidebar (added by js/current-user.js) */
 .sidebar-user {
   margin-top: 24px;
   padding: 16px 8px 0;
@@ -98,6 +106,7 @@
   width: 100%;
 }
 
+/* "Low stock" / "Out of stock" under the quantity: words + red */
 .stock-warning {
   display: block;
   color: #f85149;
@@ -105,6 +114,7 @@
   font-weight: 600;
 }
 
+/* tables inside a panel: the panel is already the box, so the table doesn't need its own */
 .panel .data-table {
   background: transparent;
   border: none;

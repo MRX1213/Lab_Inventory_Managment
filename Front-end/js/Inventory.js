@@ -66,7 +66,6 @@ let deleteTarget = null;    // { type: "item" or "group", id }
 
 // ---------- page elements ----------
 
-const pageNotice = document.getElementById("page-message");
 
 const itemTableBody = document.getElementById("item-table-body");
 const itemEmpty = document.getElementById("item-empty");
@@ -96,23 +95,7 @@ const deleteMessage = document.getElementById("delete-message");
 
 // ---------- helpers ----------
 
-// makes typed-in text safe to put inside innerHTML (so "<b>" shows as text, not HTML)
-function escapeHtml(text) {
-  return String(text)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function showNotice(message, type) {
-  pageNotice.textContent = message;
-  pageNotice.className = `notice notice--${type}`;
-  pageNotice.style.display = "block";
-  clearTimeout(showNotice._t);
-  showNotice._t = setTimeout(() => { pageNotice.style.display = "none"; }, 4000);
-}
+// escapeHtml() and showNotice() come from js/notices.js
 
 // "Cables / HDMI" or just "Filament"
 function groupName(id) {

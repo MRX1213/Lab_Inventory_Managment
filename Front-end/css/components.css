@@ -1,9 +1,15 @@
+/* shared styles for every page (buttons, tables, messages, popups).
+   these are from the User Management page's CSS, moved here so every page
+   can use the same ones. link this AFTER layout.css and BEFORE the page's own CSS */
+
 .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 20px;
 }
+
+/* h1 size/weight comes from layout.css's shared .content h1 rule (24px) — don't override it here. */
 
 .btn-primary {
   background: #238636;
@@ -143,6 +149,7 @@
   padding: 30px;
 }
 
+/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
