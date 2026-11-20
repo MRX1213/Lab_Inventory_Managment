@@ -23,23 +23,25 @@ let users = [
 ];
 
 // itemId null = they asked for something new (newItemName)
+// dates are UTC (the "Z" at the end) and shown in Eastern time by js/datetime-display.js
 let requests = [
   { id: 1, itemId: 2, newItemName: "", qty: 5, reason: "Two big prints coming up",
-    requestedBy: "student@lab.edu", createdAt: "2026-10-12T14:20", status: "Pending",
+    requestedBy: "student@lab.edu", createdAt: "2026-10-12T18:20:00Z", status: "Pending",
     decidedBy: "", decisionNotes: "", decidedAt: "" },
   { id: 2, itemId: null, newItemName: "Wood glue (16 oz)", qty: 2, reason: "None in the project room",
-    requestedBy: "jmiller@lab.edu", createdAt: "2026-10-10T10:05", status: "Approved",
-    decidedBy: "fulltime@lab.edu", decisionNotes: "Ordering with the next batch", decidedAt: "2026-10-11T09:00" },
+    requestedBy: "jmiller@lab.edu", createdAt: "2026-10-10T14:05:00Z", status: "Approved",
+    decidedBy: "fulltime@lab.edu", decisionNotes: "Ordering with the next batch", decidedAt: "2026-10-11T13:00:00Z" },
   { id: 3, itemId: 5, newItemName: "", qty: 6, reason: "Arduino workshop next week",
-    requestedBy: "student@lab.edu", createdAt: "2026-10-08T16:40", status: "Rejected",
-    decidedBy: "admin@lab.edu", decisionNotes: "We can borrow some from the CS lab", decidedAt: "2026-10-09T08:30" },
-  { id: 4, itemId: 4, newItemName: "", qty: 24, reason: "",
-    requestedBy: "fulltime@lab.edu", createdAt: "2026-10-14T11:15", status: "Pending",
+    requestedBy: "student@lab.edu", createdAt: "2026-10-08T20:40:00Z", status: "Rejected",
+    decidedBy: "admin@lab.edu", decisionNotes: "We can borrow some from the CS lab", decidedAt: "2026-10-09T12:30:00Z" },
+  { id: 4, itemId: 4, newItemName: "", qty: 24, reason: "Restock for the soldering kits",
+    requestedBy: "fulltime@lab.edu", createdAt: "2026-10-14T15:15:00Z", status: "Pending",
     decidedBy: "", decisionNotes: "", decidedAt: "" },
 ];
 
 let nextId = 100;
 let decision = null;   // { id, status } while the approve/reject popup is open
+let submitting = false; // true while a request is being saved (stops double submits)
 
 // ---------- page elements ----------
 
@@ -59,6 +61,7 @@ const reasonField = document.getElementById("request-reason");
 const existingItemBox = document.getElementById("existing-item-field");
 const newItemBox = document.getElementById("new-item-field");
 const requestError = document.getElementById("request-error");
+const requestSubmitBtn = document.getElementById("request-submit-btn");
 
 const decisionModal = document.getElementById("decision-modal");
 const decisionTitle = document.getElementById("decision-title");
@@ -93,16 +96,8 @@ function itemName(request) {
   return item ? item.name : "(deleted item)";
 }
 
-// "Oct 14, 11:15 AM"
-const formatDate = (text) =>
-  new Date(text).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-
-// right now, in the same format as the sample data
-function now() {
-  const d = new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 16);
-}
+// right now, as a UTC ISO string (the backend will set this later)
+const now = () => new Date().toISOString();
 
 // ---------- who is logged in (from js/current-user.js) ----------
 
@@ -146,7 +141,7 @@ function renderTable() {
     const decided = r.status !== "Pending";
     const decisionText = decided
       ? `${escapeHtml(r.decisionNotes || "No notes")}
-         <span class="small-text">${escapeHtml(findUser(r.decidedBy).name)}, ${formatDate(r.decidedAt)}</span>`
+         <span class="small-text">${escapeHtml(findUser(r.decidedBy).name)}, ${formatDateTime(r.decidedAt)}</span>`
       : "Waiting for review";
 
     // approve / reject buttons (reviewers only, pending only)
@@ -164,7 +159,7 @@ function renderTable() {
       <td>${r.id}</td>
       <td>${escapeHtml(itemName(r))}${r.itemId === null ? '<span class="small-text">New item</span>' : ""}</td>
       <td>${r.qty}</td>
-      <td>${escapeHtml(findUser(r.requestedBy).name)}<span class="small-text">${formatDate(r.createdAt)}</span></td>
+      <td>${escapeHtml(findUser(r.requestedBy).name)}<span class="small-text">${formatDateTime(r.createdAt)}</span></td>
       <td class="reason">${escapeHtml(r.reason || "-")}</td>
       <td><span class="status-badge ${r.status.toLowerCase()}">${r.status}</span></td>
       <td>${decisionText}</td>
@@ -219,27 +214,37 @@ function closeRequestModal() {
 
 requestForm.addEventListener("submit", (e) => {
   e.preventDefault();
+  if (submitting) return; // already saving, ignore extra clicks
+
   const isNew = requestType() === "new";
   const newName = newItemField.value.trim();
   const qty = Number(qtyField.value);
+  const reason = reasonField.value.trim();
 
   // check the form before saving
   let error = "";
   if (isNew && !newName) error = "Type the name of the item you need.";
   else if (!Number.isInteger(qty) || qty < 1) error = "Quantity has to be a whole number, 1 or more.";
+  else if (!reason) error = "Add a reason for the request.";
   if (error) {
     requestError.textContent = error;
     requestError.style.display = "block";
     return;
   }
 
-  // TODO: POST /api/requests
+  // turn the button off while saving.
+  // TODO: POST /api/requests. When that's a fetch(), turn the button back on in .finally(),
+  // and only close the popup if it worked (keep the form filled in if it failed)
+  submitting = true;
+  requestSubmitBtn.disabled = true;
+  requestSubmitBtn.textContent = "Submitting...";
+
   requests.push({
     id: nextId++,
     itemId: isNew ? null : Number(requestItemField.value),
     newItemName: isNew ? newName : "",
     qty,
-    reason: reasonField.value.trim(),
+    reason,
     requestedBy: currentEmail,
     createdAt: now(),
     status: "Pending",
@@ -247,6 +252,10 @@ requestForm.addEventListener("submit", (e) => {
     decisionNotes: "",
     decidedAt: "",
   });
+
+  submitting = false;
+  requestSubmitBtn.disabled = false;
+  requestSubmitBtn.textContent = "Submit request";
 
   closeRequestModal();
   renderTable();

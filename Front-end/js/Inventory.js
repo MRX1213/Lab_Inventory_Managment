@@ -12,6 +12,7 @@ let locations = [
   { id: 2, spaceId: 1, name: "Laser Cutter Area" },
   { id: 3, spaceId: 1, name: "Shelf" },
   { id: 4, spaceId: 2, name: "Shelf" },
+  { id: 6, spaceId: 2, name: "Side Shelves" },
   { id: 5, spaceId: 2, name: "Wood Cutting Station" },
 ];
 
@@ -26,7 +27,19 @@ let groups = [
   { id: 7, parentId: null, name: "Wood" },
   { id: 8, parentId: 7, name: "Plywood" },
   { id: 9, parentId: 7, name: "Softwood" },
-  { id: 10, parentId: null, name: "Safety Gear" },
+  { id: 10, parentId: null, name: "Glasses" },
+];
+
+// which groups belong in which location (AreaCategories in the database).
+// a subgroup counts as allowed if its parent group is allowed there.
+// matches the AreaCategories seed in Database/LabInventory.sql for the groups above
+let locationGroups = [
+  { locationId: 1, groupId: 1 },   // 3D Printer Area: Filament
+  { locationId: 1, groupId: 2 },   // 3D Printer Area: Printer Parts
+  { locationId: 3, groupId: 3 },   // Makerspace Shelf: Batteries
+  { locationId: 3, groupId: 4 },   // Makerspace Shelf: Cables
+  { locationId: 4, groupId: 10 },  // Project Room Shelf: Glasses
+  { locationId: 5, groupId: 7 },   // Wood Cutting Station: Wood
 ];
 
 // reorderLevel = at or below this counts as low stock (null = not set)
@@ -36,6 +49,7 @@ let items = [
   { id: 3, name: "Nozzle 0.4mm", groupId: 2, locationId: 1, qty: 0, reorderLevel: 2, notes: "" },
   { id: 4, name: "AA Batteries", groupId: 3, locationId: 3, qty: 3, reorderLevel: 10, notes: "" },
   { id: 5, name: "HDMI Cable 6ft", groupId: 5, locationId: 3, qty: 5, reorderLevel: 2, notes: "" },
+  // LEAD_REVIEW: mock placement. Wood isn't mapped to the Laser Cutter Area in the SQL seed
   { id: 6, name: "Plywood Sheet", groupId: 8, locationId: 2, qty: 15, reorderLevel: 5, notes: "1/8 in" },
   { id: 7, name: "2x4 Softwood", groupId: 9, locationId: 5, qty: 9, reorderLevel: 4, notes: "8 ft boards" },
   { id: 8, name: "Safety Glasses", groupId: 10, locationId: 4, qty: 20, reorderLevel: 5, notes: "" },
@@ -61,6 +75,7 @@ const stockFilter = document.getElementById("filter-stock");
 const spaceFilter = document.getElementById("filter-space");
 const locationFilter = document.getElementById("filter-location");
 const groupFilter = document.getElementById("filter-group");
+const filterNotice = document.getElementById("filter-notice");
 
 const itemForm = document.getElementById("item-form");
 const itemFormTitle = document.getElementById("item-form-title");
@@ -119,6 +134,13 @@ function stockStatus(item) {
 }
 
 const subgroupsOf = (groupId) => groups.filter((g) => g.parentId === groupId);
+
+// locations where this group (or its parent group) is allowed
+function locationsForGroup(groupId) {
+  const group = groups.find((g) => g.id === groupId);
+  const ids = [group.id, group.parentId];
+  return locationGroups.filter((m) => ids.includes(m.groupId)).map((m) => m.locationId);
+}
 const itemsInGroup = (groupId) => items.filter((i) => i.groupId === groupId).length;
 
 // ---------- dropdowns ----------
@@ -150,11 +172,78 @@ function fillDropdowns() {
   const parentOptions = groups.filter((g) => g.parentId === null).map((g) => ({ value: g.id, text: g.name }));
 
   fillSelect(spaceFilter, spaceOptions, "All spaces");
-  fillSelect(locationFilter, locationOptions, "All locations");
   fillSelect(groupFilter, groupOptions(), "All groups");
+  fillSelect(locationFilter, filterLocationOptions(), "All locations");
   fillSelect(itemGroupField, groupOptions());
   fillSelect(itemLocationField, locationOptions);
   fillSelect(groupParentField, [{ value: "none", text: "None (new group)" }, ...parentOptions]);
+}
+
+// ---------- linked filters ----------
+// the filters have to make sense together: a location has to be in the picked space,
+// and the picked group has to be allowed in that location. If a change makes another
+// filter impossible, that filter resets to "All" and a short note says why.
+
+// location filter choices: only locations in the picked space where the picked group is allowed
+function filterLocationOptions() {
+  const spaceVal = spaceFilter.value || "all";
+  const groupVal = groupFilter.value || "all";
+  const allowed = groupVal === "all" ? null : locationsForGroup(Number(groupVal));
+  return locations
+    .filter((l) => spaceVal === "all" || l.spaceId === Number(spaceVal))
+    .filter((l) => !allowed || allowed.includes(l.id))
+    .map((l) => ({ value: l.id, text: locationName(l.id) }));
+}
+
+function showFilterNotice(message) {
+  filterNotice.textContent = message;
+  filterNotice.style.display = message ? "block" : "none";
+}
+
+// changed = which filter the person just changed ("space", "location", or "group")
+function onFilterChange(changed) {
+  const notes = [];
+  const groupVal = groupFilter.value;
+  const groupLocations = groupVal === "all" ? null : locationsForGroup(Number(groupVal));
+
+  if (groupLocations && groupLocations.length === 0) {
+    notes.push(`No locations are mapped to ${groupName(Number(groupVal))}.`);
+  }
+
+  // space changed: the group has to be allowed somewhere in the new space
+  if (changed === "space" && groupLocations && spaceFilter.value !== "all") {
+    const inSpace = locations.some((l) => l.spaceId === Number(spaceFilter.value) && groupLocations.includes(l.id));
+    if (!inSpace) {
+      notes.push(`Group reset: ${groupName(Number(groupVal))} isn't kept in this space.`);
+      groupFilter.value = "all";
+    }
+  }
+
+  // location changed: the group has to be allowed in the new location
+  if (changed === "location" && groupLocations && locationFilter.value !== "all" &&
+      !groupLocations.includes(Number(locationFilter.value))) {
+    notes.push(`Group reset: ${groupName(Number(groupVal))} isn't kept in this location.`);
+    groupFilter.value = "all";
+  }
+
+  // group changed: the space has to have somewhere the group is allowed
+  if (changed === "group" && groupLocations && groupLocations.length > 0 && spaceFilter.value !== "all") {
+    const inSpace = locations.some((l) => l.spaceId === Number(spaceFilter.value) && groupLocations.includes(l.id));
+    if (!inSpace) {
+      notes.push("Space reset: this group isn't kept there.");
+      spaceFilter.value = "all";
+    }
+  }
+
+  // refill the location choices, and note it if the picked location no longer fits
+  const pickedLocation = locationFilter.value;
+  fillSelect(locationFilter, filterLocationOptions(), "All locations");
+  if (pickedLocation !== "all" && locationFilter.value !== pickedLocation) {
+    notes.push("Location reset: it doesn't fit the other filters.");
+  }
+
+  showFilterNotice(notes.join(" "));
+  renderItems();
 }
 
 // ---------- items ----------
@@ -182,8 +271,10 @@ function renderItems() {
   itemEmpty.style.display = filtered.length === 0 ? "block" : "none";
 
   filtered.forEach((i) => {
+    // low / out of stock: words AND red, not color alone (accessibility)
     const status = stockStatus(i);
-    const qtyText = status === "ok" ? i.qty : `${i.qty} (${status})`;
+    const warning = { low: "Low stock", out: "Out of stock" }[status];
+    const qtyText = warning ? `${i.qty}<span class="stock-warning">${warning}</span>` : i.qty;
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${escapeHtml(i.name)}</td>
@@ -418,8 +509,10 @@ function renderAll() {
   renderGroups();
 }
 
-[searchInput, stockFilter, spaceFilter, locationFilter, groupFilter].forEach((el) => {
-  el.addEventListener("input", renderItems);
-});
+searchInput.addEventListener("input", renderItems);
+stockFilter.addEventListener("change", renderItems);
+spaceFilter.addEventListener("change", () => onFilterChange("space"));
+locationFilter.addEventListener("change", () => onFilterChange("location"));
+groupFilter.addEventListener("change", () => onFilterChange("group"));
 
 renderAll();

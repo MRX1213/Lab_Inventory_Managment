@@ -15,7 +15,7 @@ const ROLES = {
 
 // TEMPORARY: who to act as when nobody has logged in yet (until the login page works).
 // change this to test the other layouts:  ROLES.admin, ROLES.fullTime, or ROLES.student
-const TEST_ROLE = ROLES.student;
+const TEST_ROLE = ROLES.admin;
 
 const testUsers = {
   [ROLES.admin]: { name: "Test Admin", email: "admin@lab.edu", role: ROLES.admin },
