@@ -25,11 +25,16 @@
     <main class="content">
       <div class="page-header">
         <h1>Supply Requests</h1>
-        <button type="button" class="btn-primary" id="new-request-btn">+ New request</button>
+        <div class="header-buttons">
+          <button type="button" class="btn-secondary" id="refresh-btn">Refresh</button>
+          <button type="button" class="btn-primary" id="new-request-btn">+ New request</button>
+        </div>
       </div>
 
-      <p id="page-message" role="status" hidden></p>
+      <!-- success / error messages -->
+      <p id="page-message" class="notice" role="status" style="display: none;"></p>
 
+      <!-- same cards as the dashboard -->
       <section class="summary-cards">
         <div class="card">
           <p class="card-label">Pending</p>
@@ -45,6 +50,7 @@
         </div>
       </section>
 
+      <!-- search + status filter -->
       <div class="toolbar">
         <label for="search-box" class="sr-only">Search by item or person</label>
         <input type="text" id="search-box" placeholder="Search by item or person">
@@ -59,11 +65,13 @@
       </div>
 
       <h2 id="table-title">Requests</h2>
+      <p class="small-text" id="last-updated"></p>
       <table class="data-table">
         <thead>
           <tr>
             <th>#</th>
             <th>Item</th>
+            <th>Location</th>
             <th>Qty</th>
             <th>Requested by</th>
             <th>Reason</th>
@@ -75,10 +83,12 @@
         <tbody id="request-table-body">
         </tbody>
       </table>
+      <p class="empty-state" id="empty-state" style="display: none;"></p>
     </main>
   </div>
 
-  <div class="modal-overlay" id="request-modal" hidden>
+  <!-- popup: new request -->
+  <div class="modal-overlay" id="request-modal" style="display: none;">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="request-modal-title">
       <h2 id="request-modal-title">New request</h2>
       <form id="request-form" novalidate>
@@ -93,28 +103,33 @@
           <select id="request-item"></select>
         </div>
 
-        <div id="new-item-field" hidden>
+        <div id="new-item-field" style="display: none;">
           <label for="request-new-name">New item name</label>
           <input type="text" id="request-new-name">
         </div>
 
+        <label for="request-location">Location</label>
+        <select id="request-location"></select>
+        <p class="field-hint" id="request-location-hint"></p>
+
         <label for="request-qty">Quantity needed</label>
         <input type="number" id="request-qty" min="1" value="1">
 
-        <label for="request-reason">Reason / notes</label>
-        <textarea id="request-reason"></textarea>
+        <label for="request-reason">Reason (required)</label>
+        <textarea id="request-reason" required></textarea>
 
-        <p class="notice notice--error" id="request-error" hidden></p>
+        <p class="notice notice--error" id="request-error" style="display: none;"></p>
 
         <div class="modal-actions">
           <button type="button" class="btn-secondary" id="request-cancel-btn">Cancel</button>
-          <button type="submit" class="btn-primary">Submit request</button>
+          <button type="submit" class="btn-primary" id="request-submit-btn">Submit request</button>
         </div>
       </form>
     </div>
   </div>
 
-  <div class="modal-overlay" id="decision-modal" hidden>
+  <!-- popup: approve / reject -->
+  <div class="modal-overlay" id="decision-modal" style="display: none;">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="decision-title">
       <h2 id="decision-title">Approve request</h2>
       <form id="decision-form">
@@ -130,6 +145,8 @@
   </div>
 
   <script src="js/current-user.js"></script>
+  <script src="js/datetime-display.js"></script>
+  <script src="js/notices.js"></script>
   <script src="js/supply-requests.js"></script>
 </body>
 </html>
