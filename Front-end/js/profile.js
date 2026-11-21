@@ -1,7 +1,3 @@
-// auth.js must run first — requireLogin() sends you back to login.html if nobody's logged in
-let currentUser = requireLogin();
-if (currentUser) initSidebarForRole(currentUser);
-
 // Profile page — placeholder data only, not connected to the real database/session yet.
 // Once login is wired to the real API, "currentUser" below should come from the logged-in
 // session instead of being hardcoded, and both forms should PUT/PATCH to the real

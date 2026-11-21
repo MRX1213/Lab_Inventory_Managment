@@ -1,20 +1,17 @@
-// auth.js must run first — requireLogin() sends you back to login.html if nobody's logged in
-let currentUser = requireLogin();
-if (currentUser) initSidebarForRole(currentUser);
-
 // User Management page — placeholder data only, not connected to the real database yet.
+// current-user.js (loaded before this file) already handles auth/role display —
+// no login check needed here.
 // Once Jaden's API is ready, swap the mock `users` array + localStorage below for real fetch() calls
 // to the Users/Roles tables (UserID, FirstName, LastName, Email, Phone, RoleID, IsActive).
 
 let users = [
-  { id: 1, firstName: "Deep", lastName: "Patel", email: "deep.patel@example.edu", phone: "814-555-0101", role: "Admin", active: true, created: "2026-09-02" },
-  { id: 2, firstName: "Beau", lastName: "Smith", email: "beau.smith@example.edu", phone: "814-555-0102", role: "Admin", active: true, created: "2026-09-02" },
-  { id: 3, firstName: "Jaden", lastName: "Lee", email: "jaden.lee@example.edu", phone: "814-555-0103", role: "Admin", active: true, created: "2026-09-02" },
-  { id: 4, firstName: "Sam", lastName: "Rivera", email: "sam.rivera@example.edu", phone: "814-555-0104", role: "Student Worker", active: false, created: "2026-10-01" },
-  { id: 5, firstName: "Andrii", lastName: "Varlamov", email: "andrii.varlamov@example.edu", phone: "814-555-0105", role: "Admin", active: true, created: "2026-09-02" },
+  { id: 1, firstName: "Deep", lastName: "", email: "deep.patel@example.edu", phone: "814-555-0101", role: "Admin", active: true, created: "2026-09-02" },
+  { id: 2, firstName: "Beau", lastName: "", email: "beau.morgan@example.edu", phone: "814-555-0102", role: "Admin", active: true, created: "2026-09-02" },
+  { id: 3, firstName: "Jaden", lastName: "", email: "jaden.nye@example.edu", phone: "814-555-0103", role: "Admin", active: true, created: "2026-09-02" },
+  { id: 4, firstName: "Andrii", lastName: "", email: "andrii.varlamov@example.edu", phone: "814-555-0105", role: "Admin", active: true, created: "2026-09-02" },
 ];
 
-let nextId = 6;
+let nextId = 5;
 let deleteTargetId = null;
 
 const tableBody = document.getElementById("userTableBody");

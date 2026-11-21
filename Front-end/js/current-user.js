@@ -3,7 +3,7 @@
 //   <script src="js/current-user.js"></script>
 //   <script src="js/inventory.js"></script>
 //
-// These pages read the logged-in user from sessionStorage "currentUser" as { name, email, role }.
+// These pages read the logged-in user from sessionStorage "currentUser" as { firstName, lastName, email, role }.
 // The login page should save that after a successful login.
 // This only changes what the page shows. The backend still has to check roles itself.
 
@@ -18,9 +18,9 @@ const ROLES = {
 const TEST_ROLE = ROLES.admin;
 
 const testUsers = {
-  [ROLES.admin]: { name: "Test Admin", email: "admin@lab.edu", role: ROLES.admin },
-  [ROLES.fullTime]: { name: "Test Worker", email: "fulltime@lab.edu", role: ROLES.fullTime },
-  [ROLES.student]: { name: "Test Student", email: "student@lab.edu", role: ROLES.student },
+  [ROLES.admin]: { firstName: "Test", lastName: "Admin", email: "admin@lab.edu", role: ROLES.admin },
+  [ROLES.fullTime]: { firstName: "Test", lastName: "Worker", email: "fulltime@lab.edu", role: ROLES.fullTime },
+  [ROLES.student]: { firstName: "Test", lastName: "Student", email: "student@lab.edu", role: ROLES.student },
 };
 
 const currentUser = JSON.parse(sessionStorage.getItem("currentUser") || "null") || testUsers[TEST_ROLE];
@@ -42,16 +42,13 @@ if (!hasRole(ROLES.admin)) {
 }
 
 // who is logged in + Log Out, at the bottom of the sidebar
-const sidebarUser = document.createElement("div");
-sidebarUser.className = "sidebar-user";
-sidebarUser.innerHTML = `
-  <p class="sidebar-user-name"></p>
-  <p class="sidebar-user-role"></p>
-  <button type="button" class="btn-secondary" id="logout-btn">Log Out</button>
+const sidebarFooter = document.createElement("div");
+sidebarFooter.className = "sidebar-footer";
+sidebarFooter.innerHTML = `
+  <p class="sidebar-user">${currentUser.firstName} ${currentUser.lastName} <span>${currentUser.role}</span></p>
+  <button type="button" class="btn-logout" id="logout-btn">Log Out</button>
 `;
-sidebarUser.querySelector(".sidebar-user-name").textContent = currentUser.name;
-sidebarUser.querySelector(".sidebar-user-role").textContent = currentUser.role;
-document.querySelector(".sidebar").appendChild(sidebarUser);
+document.querySelector(".sidebar").appendChild(sidebarFooter);
 
 document.getElementById("logout-btn").addEventListener("click", () => {
   sessionStorage.removeItem("currentUser");

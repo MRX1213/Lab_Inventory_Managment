@@ -1,7 +1,3 @@
-// auth.js must run first — requireLogin() sends you back to login.html if nobody's logged in
-var currentUser = requireLogin();
-if (currentUser) initSidebarForRole(currentUser);
-
 // placeholder numbers until the backend is connected
 // these just prove the page structure works for now
 
