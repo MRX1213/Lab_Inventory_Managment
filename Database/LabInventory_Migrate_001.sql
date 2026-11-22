@@ -69,6 +69,10 @@ WHERE s.SpaceName = N'Project Room'
                   WHERE ac.AreaID = a.AreaID AND ac.CategoryID = c.CategoryID);
 GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Items_Area_Category')
+    CREATE INDEX IX_Items_Area_Category ON dbo.Items (AreaID, CategoryID);
+GO
+
 -- View: area labels for the front end
 CREATE OR ALTER VIEW dbo.vw_AreaDisplay AS
 SELECT a.AreaID, a.SpaceID, a.AreaName,
