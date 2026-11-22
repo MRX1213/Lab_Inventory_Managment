@@ -1,0 +1,60 @@
+# LabInventory Schema Notes
+
+## Terminology
+- **Location** (front end) = **Areas** (database). Both terms are kept.
+- Areas belong to a Space. Two areas can share a name (e.g. "Shelf") if they are in different spaces. `UQ_Areas` enforces unique (SpaceID, AreaName).
+- Display labels such as "Makerspace - Shelf" come from the view `vw_AreaDisplay`. Database rows are not renamed.
+
+## Categories and areas
+- Categories form a tree through `Categories.ParentCategoryID`.
+- `AreaCategories` is a many-to-many mapping between areas and categories.
+- A shared category (e.g. Saws) is mapped to each area with its own `AreaCategories` row.
+
+### Category inheritance rule
+A category C is valid in area A if C, or any ancestor of C, is mapped to A in `AreaCategories`.
+- Child categories do not need their own `AreaCategories` rows.
+- Items store their leaf category in `Items.CategoryID`.
+- If no category in the chain is mapped, the category is not valid for that area. The API returns a validation error on item create/move, and filters return an empty set with a UI message.
+- Implemented by `vw_ValidAreaCategories` (one row per valid AreaID + CategoryID).
+
+## Roles
+`Roles` holds three rows. Names must match `ROLES` in `Front-end/js/current-user.js`:
+- Admin
+- Full-time Lab Worker
+- Student Worker
+
+Role IDs can differ between databases, so the app must look roles up by name, not by ID.
+
+## Users and sessions
+- `Users` has `PasswordHash` (NVARCHAR(255), NULL) and `Phone` (NVARCHAR(40), NULL).
+- Password hashing happens in the application layer (e.g. bcrypt), never in T-SQL.
+- `Users.IsActive = 0` must fail login and invalidate sessions (delete the user's rows in `UserSessions`).
+- `UserSessions` stores SessionID, UserID, CreatedAt, ExpiresAt (UTC).
+
+## Inventory quantity changes (audited)
+- Use `usp_AdjustItemQuantity(@ItemID, @UserID, @Change, @Notes)` for every +/- press.
+- It updates `Items.QuantityOnHand` and inserts an `InventoryLogs` row in one transaction.
+- It refuses to take quantity below zero (error 50001).
+- Log row: `LogType = 'Adjust'`, `Quantity` = **signed change** (-1 decrease, +1 increase), `UserID` = the logged-in user, `ProcessedByID` = NULL.
+- `UserID` must come from the server session, never from the request body.
+- Allowed `LogType` values: Adjust, Restock, Consume, CheckIn, CheckOut.
+
+## Supply requests
+`SupplyRequests` columns: RequestID, RequestedByUserID, ItemID, NewItemName, TargetAreaID, Quantity, Reason, Status, ReviewedByUserID, ReviewNotes, ReviewedAt, CreatedAt.
+- A request is for **either** an existing item (`ItemID`) **or** a new item (`NewItemName`), enforced by `CK_SupplyRequests_ItemOrNew`.
+- `TargetAreaID` is required. For an existing item, the API should check it equals the item's `AreaID`.
+- `Status` is Pending, Approved, or Rejected. Default is Pending.
+- "Own only" for students: filter on `RequestedByUserID` = session user. Staff and admins see all.
+- Review fields (`ReviewedByUserID`, `ReviewNotes`, `ReviewedAt`) are NULL until a decision is made.
+- The front end identifies users by email, so the API must map email to `UserID`.
+- Indexes: `IX_SupplyRequests_RequestedBy` and `IX_SupplyRequests_Status_Area`.
+
+## Scripts
+- `LabInventory_Migrate_001.sql`: non-destructive, safe to run more than once.
+- `LabInventory_Reset_Dev.sql`: **DEV ONLY**, never run in production.
+
+## Open questions for the team/lead
+1. Which `Items.TrackingType` values allow the +/- buttons?
+2. Confirm the signed-`Quantity` convention for `Adjust` log rows.
+3. Retention / soft-delete policy for users and requests (DB-P1-03).
+4. Optional later: `Items.RowVersion` for concurrency, and an index on `Items(AreaID, CategoryID)`.
