@@ -1,63 +1,47 @@
-// Inventory page — placeholder data only, not connected to the real database yet.
-// Once the API is ready, swap the mock arrays below for fetch() calls to the
-// Spaces, Areas (locations), Categories (groups), and Items tables.
+// Inventory — loaded from SQL Server via /api.
 
-let spaces = [
-  { id: 1, name: "Makerspace" },
-  { id: 2, name: "Project Room" },
-];
+let spaces = [];
+let locations = [];
+let groups = [];
+let locationGroups = [];
+let items = [];
 
-let locations = [
-  { id: 1, spaceId: 1, name: "3D Printer Area" },
-  { id: 2, spaceId: 1, name: "Laser Cutter Area" },
-  { id: 3, spaceId: 1, name: "Shelf" },
-  { id: 4, spaceId: 2, name: "Shelf" },
-  { id: 6, spaceId: 2, name: "Side Shelves" },
-  { id: 5, spaceId: 2, name: "Wood Cutting Station" },
-];
-
-// parentId null = group, otherwise it's a subgroup of that group
-let groups = [
-  { id: 1, parentId: null, name: "Filament" },
-  { id: 2, parentId: null, name: "Printer Parts" },
-  { id: 3, parentId: null, name: "Batteries" },
-  { id: 4, parentId: null, name: "Cables" },
-  { id: 5, parentId: 4, name: "HDMI" },
-  { id: 6, parentId: 4, name: "USB" },
-  { id: 7, parentId: null, name: "Wood" },
-  { id: 8, parentId: 7, name: "Plywood" },
-  { id: 9, parentId: 7, name: "Softwood" },
-  { id: 10, parentId: null, name: "Glasses" },
-];
-
-// which groups belong in which location (AreaCategories in the database).
-// a subgroup counts as allowed if its parent group is allowed there.
-// matches the AreaCategories seed in Database/LabInventory.sql for the groups above
-let locationGroups = [
-  { locationId: 1, groupId: 1 },   // 3D Printer Area: Filament
-  { locationId: 1, groupId: 2 },   // 3D Printer Area: Printer Parts
-  { locationId: 3, groupId: 3 },   // Makerspace Shelf: Batteries
-  { locationId: 3, groupId: 4 },   // Makerspace Shelf: Cables
-  { locationId: 4, groupId: 10 },  // Project Room Shelf: Glasses
-  { locationId: 5, groupId: 7 },   // Wood Cutting Station: Wood
-];
-
-// reorderLevel = at or below this counts as low stock (null = not set)
-let items = [
-  { id: 1, name: "PLA Black", groupId: 1, locationId: 1, qty: 12, reorderLevel: 4, notes: "1.75mm spools" },
-  { id: 2, name: "ABS Red", groupId: 1, locationId: 1, qty: 2, reorderLevel: 3, notes: "" },
-  { id: 3, name: "Nozzle 0.4mm", groupId: 2, locationId: 1, qty: 0, reorderLevel: 2, notes: "" },
-  { id: 4, name: "AA Batteries", groupId: 3, locationId: 3, qty: 3, reorderLevel: 10, notes: "" },
-  { id: 5, name: "HDMI Cable 6ft", groupId: 5, locationId: 3, qty: 5, reorderLevel: 2, notes: "" },
-  // LEAD_REVIEW: mock placement. Wood isn't mapped to the Laser Cutter Area in the SQL seed
-  { id: 6, name: "Plywood Sheet", groupId: 8, locationId: 2, qty: 15, reorderLevel: 5, notes: "1/8 in" },
-  { id: 7, name: "2x4 Softwood", groupId: 9, locationId: 5, qty: 9, reorderLevel: 4, notes: "8 ft boards" },
-  { id: 8, name: "Safety Glasses", groupId: 10, locationId: 4, qty: 20, reorderLevel: 5, notes: "" },
-];
+async function loadInventoryFromApi() {
+  const [sp, ar, cat, ac, it] = await Promise.all([
+    window.labApi.apiFetch("/spaces"),
+    window.labApi.apiFetch("/areas"),
+    window.labApi.apiFetch("/categories"),
+    window.labApi.apiFetch("/area-categories"),
+    window.labApi.apiFetch("/items?stock=all"),
+  ]);
+  spaces = sp.data.spaces.map((s) => ({ id: s.spaceId, name: s.spaceName }));
+  locations = ar.data.areas.map((a) => ({
+    id: a.areaId,
+    spaceId: a.spaceId,
+    name: a.areaName,
+    displayLabel: a.displayLabel,
+  }));
+  groups = cat.data.categories.map((c) => ({
+    id: c.categoryId,
+    parentId: c.parentCategoryId,
+    name: c.categoryName,
+  }));
+  locationGroups = ac.data.mappings.map((m) => ({ locationId: m.areaId, groupId: m.categoryId }));
+  items = it.data.items.map((i) => ({
+    id: i.itemId,
+    name: i.itemName,
+    groupId: i.categoryId,
+    locationId: i.areaId,
+    qty: i.quantityOnHand,
+    reorderLevel: i.reorderLevel,
+    notes: i.notes || "",
+    rowVersion: i.rowVersion,
+  }));
+}
 
 // Admin + Full-time Lab Workers can manage items and groups.
 // Student Workers can browse and use + / - (hasRole comes from js/current-user.js)
-const canManage = hasRole(ROLES.admin, ROLES.fullTime);
+let canManage = false;
 
 let nextId = 100;
 let editingItemId = null;   // null = the item form is adding, not editing
@@ -107,6 +91,8 @@ function groupName(id) {
 // "Makerspace - Shelf"
 function locationName(id) {
   const loc = locations.find((l) => l.id === id);
+  if (!loc) return "";
+  if (loc.displayLabel) return loc.displayLabel;
   return spaces.find((s) => s.id === loc.spaceId).name + " - " + loc.name;
 }
 
@@ -294,11 +280,19 @@ itemTableBody.addEventListener("click", (e) => {
   if (action === "delete") openDeleteModal("item", id);
 });
 
-function changeQty(id, amount) {
+async function changeQty(id, amount) {
   const item = items.find((i) => i.id === id);
   if (item.qty + amount < 0) return showNotice(`${item.name} is already at 0.`, "error");
-  item.qty += amount; // TODO: PUT /api/items/:id with the new quantity
-  renderAll();
+  try {
+    await window.labApi.apiFetch(`/items/${id}/quantity`, {
+      method: "POST",
+      body: { delta: amount },
+    });
+    await loadInventoryFromApi();
+    renderAll();
+  } catch (e) {
+    showNotice(e.message || "Quantity update failed.", "error");
+  }
 }
 
 function openEditItem(id) {
@@ -321,7 +315,7 @@ function resetItemForm() {
   itemFormTitle.textContent = "Add Item";
 }
 
-itemForm.addEventListener("submit", (e) => {
+itemForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const name = itemNameField.value.trim();
   const qty = Number(itemQtyField.value);
@@ -331,26 +325,35 @@ itemForm.addEventListener("submit", (e) => {
     return showNotice("Quantity must be a whole number, 0 or more.", "error");
   }
 
-  const data = {
-    name,
-    groupId: Number(itemGroupField.value),
-    locationId: Number(itemLocationField.value),
-    qty,
+  const baseBody = {
+    itemName: name,
+    categoryId: Number(itemGroupField.value),
+    areaId: Number(itemLocationField.value),
     reorderLevel: itemReorderField.value === "" ? null : Number(itemReorderField.value),
     notes: itemNotesField.value.trim(),
   };
 
-  if (editingItemId) {
-    // TODO: PUT /api/items/:id
-    Object.assign(items.find((i) => i.id === editingItemId), data);
-    showNotice(`${name} updated.`, "success");
-  } else {
-    // TODO: POST /api/items
-    items.push({ id: nextId++, ...data });
-    showNotice(`${name} added.`, "success");
+  try {
+    if (editingItemId) {
+      const existing = items.find((i) => i.id === editingItemId);
+      await window.labApi.apiFetch(`/items/${editingItemId}`, {
+        method: "PUT",
+        body: { ...baseBody, rowVersion: existing?.rowVersion },
+      });
+      showNotice(`${name} updated.`, "success");
+    } else {
+      await window.labApi.apiFetch("/items", {
+        method: "POST",
+        body: { ...baseBody, quantityOnHand: qty },
+      });
+      showNotice(`${name} added.`, "success");
+    }
+    await loadInventoryFromApi();
+    resetItemForm();
+    renderAll();
+  } catch (err) {
+    showNotice(err.message || "Save failed.", "error");
   }
-  resetItemForm();
-  renderAll();
 });
 
 document.getElementById("item-cancel-btn").addEventListener("click", resetItemForm);
@@ -414,27 +417,33 @@ function closeGroupForm() {
   groupForm.style.display = "none";
 }
 
-groupForm.addEventListener("submit", (e) => {
+groupForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const name = groupNameField.value.trim();
   const parentId = groupParentField.value === "none" ? null : Number(groupParentField.value);
 
   if (!name) return showNotice("Group name is required.", "error");
-  const duplicate = groups.some((g) =>
-    g.name.toLowerCase() === name.toLowerCase() && g.parentId === parentId && g.id !== editingGroupId);
-  if (duplicate) return showNotice(`There's already a group called ${name} there.`, "error");
 
-  if (editingGroupId) {
-    // TODO: PUT /api/groups/:id
-    groups.find((g) => g.id === editingGroupId).name = name;
-    showNotice(`Renamed to ${name}.`, "success");
-  } else {
-    // TODO: POST /api/groups
-    groups.push({ id: nextId++, parentId, name });
-    showNotice(`${name} added.`, "success");
+  try {
+    if (editingGroupId) {
+      await window.labApi.apiFetch(`/categories/${editingGroupId}`, {
+        method: "PUT",
+        body: { categoryName: name },
+      });
+      showNotice(`Renamed to ${name}.`, "success");
+    } else {
+      await window.labApi.apiFetch("/categories", {
+        method: "POST",
+        body: { categoryName: name, parentCategoryId: parentId },
+      });
+      showNotice(`${name} added.`, "success");
+    }
+    await loadInventoryFromApi();
+    closeGroupForm();
+    renderAll();
+  } catch (err) {
+    showNotice(err.message || "Group save failed.", "error");
   }
-  closeGroupForm();
-  renderAll();
 });
 
 document.getElementById("group-cancel-btn").addEventListener("click", closeGroupForm);
@@ -460,23 +469,29 @@ function closeDeleteModal() {
   deleteTarget = null;
 }
 
-document.getElementById("delete-confirm-btn").addEventListener("click", () => {
+document.getElementById("delete-confirm-btn").addEventListener("click", async () => {
   if (deleteTarget) {
     const { type, id } = deleteTarget;
-    if (type === "item") {
-      // TODO: DELETE /api/items/:id
-      const item = items.find((i) => i.id === id);
-      items = items.filter((i) => i.id !== id);
-      if (editingItemId === id) resetItemForm();
-      showNotice(`${item.name} deleted.`, "success");
-    } else {
-      // TODO: DELETE /api/groups/:id
-      const name = groupName(id);
-      groups = groups.filter((g) => g.id !== id);
-      closeGroupForm();
-      showNotice(`${name} deleted.`, "success");
+    try {
+      if (type === "item") {
+        const item = items.find((i) => i.id === id);
+        await window.labApi.apiFetch(`/items/${id}`, {
+          method: "DELETE",
+          body: { rowVersion: item?.rowVersion },
+        });
+        if (editingItemId === id) resetItemForm();
+        showNotice(`${item.name} deleted.`, "success");
+      } else {
+        const name = groupName(id);
+        await window.labApi.apiFetch(`/categories/${id}`, { method: "DELETE", body: {} });
+        closeGroupForm();
+        showNotice(`${name} deleted.`, "success");
+      }
+      await loadInventoryFromApi();
+      renderAll();
+    } catch (err) {
+      showNotice(err.message || "Delete failed.", "error");
     }
-    renderAll();
   }
   closeDeleteModal();
 });
@@ -498,4 +513,13 @@ spaceFilter.addEventListener("change", () => onFilterChange("space"));
 locationFilter.addEventListener("change", () => onFilterChange("location"));
 groupFilter.addEventListener("change", () => onFilterChange("group"));
 
-renderAll();
+(async function initInventoryPage() {
+  await window.labAuthReady;
+  canManage = hasRole(ROLES.admin, ROLES.fullTime);
+  try {
+    await loadInventoryFromApi();
+    renderAll();
+  } catch (e) {
+    showNotice("Could not load inventory: " + e.message, "error");
+  }
+})();

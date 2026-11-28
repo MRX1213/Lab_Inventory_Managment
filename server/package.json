@@ -1,0 +1,29 @@
+{
+  "name": "lab-inventory-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --import ./test/load-env.js src/index.js",
+    "dev": "node --import ./test/load-env.js --watch src/index.js",
+    "test": "node --test test/**/*.test.js",
+    "test:integration": "node --import ./test/load-env.js --test test/integration/**/*.test.js",
+    "test:smoke": "node --import ./test/load-env.js --test test/smoke/**/*.test.js",
+    "db:init": "node --import ./test/load-env.js scripts/run-sql.js Database/LabInventory_Init.sql",
+    "db:migrate": "node --import ./test/load-env.js scripts/run-sql.js Database/LabInventory_Migrate_001.sql",
+    "db:seed-qa": "node --import ./test/load-env.js scripts/run-sql.js Database/LabInventory_Seed_QA_Data.sql",
+    "bootstrap-admin": "node --import ./test/load-env.js scripts/bootstrap-admin.js",
+    "class:reset-accounts": "node --import ./test/load-env.js scripts/class-reset-accounts.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "express": "^4.21.2",
+    "mssql": "^11.0.1"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.49.1"
+  }
+}

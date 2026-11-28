@@ -27,26 +27,44 @@ GO
 IF OBJECT_ID('dbo.SupplyRequests', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.SupplyRequests (
-        RequestID         INT IDENTITY(1,1) PRIMARY KEY,
-        RequestedByUserID INT NOT NULL REFERENCES dbo.Users(UserID),
-        ItemID            INT NULL REFERENCES dbo.Items(ItemID),
-        NewItemName       NVARCHAR(200) NULL,
-        TargetAreaID      INT NOT NULL REFERENCES dbo.Areas(AreaID),
-        Quantity          INT NOT NULL CHECK (Quantity > 0),
-        Reason            NVARCHAR(500) NULL,
-        Status            VARCHAR(20) NOT NULL DEFAULT 'Pending'
+        RequestID           INT IDENTITY(1,1) PRIMARY KEY,
+        RequestedByUserID   INT NOT NULL REFERENCES dbo.Users(UserID),
+        ItemID              INT NULL REFERENCES dbo.Items(ItemID),
+        ItemNameSnapshot    NVARCHAR(150) NOT NULL DEFAULT N'',
+        NewItemName         NVARCHAR(200) NULL,
+        TargetAreaID        INT NOT NULL REFERENCES dbo.Areas(AreaID),
+        Quantity            INT NOT NULL CHECK (Quantity > 0),
+        Reason              NVARCHAR(500) NULL,
+        Status              VARCHAR(20) NOT NULL DEFAULT 'Pending'
             CHECK (Status IN ('Pending','Approved','Rejected')),
-        ReviewedByUserID  INT NULL REFERENCES dbo.Users(UserID),
-        ReviewNotes       NVARCHAR(500) NULL,
-        ReviewedAt        DATETIME2 NULL,
-        CreatedAt         DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        ReviewedByUserID    INT NULL REFERENCES dbo.Users(UserID),
+        ReviewNotes         NVARCHAR(500) NULL,
+        ReviewedAt          DATETIME2 NULL,
+        CreatedAt           DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        RowVersion          ROWVERSION NOT NULL,
         CONSTRAINT CK_SupplyRequests_ItemOrNew CHECK (
-            (ItemID IS NOT NULL AND NewItemName IS NULL)
-            OR (ItemID IS NULL AND NewItemName IS NOT NULL))
+            (ItemID IS NOT NULL AND (NewItemName IS NULL OR LTRIM(RTRIM(NewItemName)) = N''))
+            OR (ItemID IS NULL AND NewItemName IS NOT NULL AND LEN(LTRIM(RTRIM(NewItemName))) > 0))
     );
     CREATE INDEX IX_SupplyRequests_RequestedBy ON dbo.SupplyRequests (RequestedByUserID);
     CREATE INDEX IX_SupplyRequests_Status_Area ON dbo.SupplyRequests (Status, TargetAreaID);
 END
+GO
+
+IF COL_LENGTH('dbo.SupplyRequests', 'ItemNameSnapshot') IS NULL
+    ALTER TABLE dbo.SupplyRequests ADD ItemNameSnapshot NVARCHAR(150) NOT NULL CONSTRAINT DF_SR_Snap DEFAULT N'' WITH VALUES;
+GO
+
+IF COL_LENGTH('dbo.Users', 'CreatedAt') IS NULL
+    ALTER TABLE dbo.Users ADD CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_Users_CreatedAt2 DEFAULT SYSUTCDATETIME();
+GO
+
+IF COL_LENGTH('dbo.UserSessions', 'CsrfToken') IS NULL
+    ALTER TABLE dbo.UserSessions ADD CsrfToken NVARCHAR(64) NOT NULL CONSTRAINT DF_Session_Csrf DEFAULT N'';
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Items') AND name = 'RowVersion')
+    ALTER TABLE dbo.Items ADD RowVersion ROWVERSION NOT NULL;
 GO
 
 -- Roles (names must match current-user.js)
@@ -111,12 +129,31 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
+    IF @Change = 0
+        THROW 50002, 'Quantity change must be non-zero.', 1;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE UserID = @UserID AND IsActive = 1)
+        THROW 50003, 'Invalid or inactive user.', 1;
+
+    DECLARE @Current INT;
+    DECLARE @NewQty BIGINT;
+    SELECT @Current = QuantityOnHand FROM dbo.Items WITH (UPDLOCK, ROWLOCK) WHERE ItemID = @ItemID;
+    IF @Current IS NULL
+        THROW 50001, 'Item not found or quantity would go below zero.', 1;
+
+    SET @NewQty = CAST(@Current AS BIGINT) + CAST(@Change AS BIGINT);
+    IF @NewQty < 0 OR @NewQty > 2147483647
+        THROW 50004, 'Quantity out of allowed range.', 1;
+
+    DECLARE @LogType VARCHAR(15) = CASE WHEN @Change >= 0 THEN 'Restock' ELSE 'Consume' END;
+    DECLARE @LogQty INT = ABS(@Change);
+
     BEGIN TRAN;
 
     UPDATE dbo.Items
-    SET QuantityOnHand = QuantityOnHand + @Change
+    SET QuantityOnHand = CAST(@NewQty AS INT)
     WHERE ItemID = @ItemID
-      AND QuantityOnHand + @Change >= 0;
+      AND QuantityOnHand = @Current;
 
     IF @@ROWCOUNT = 0
     BEGIN
@@ -124,8 +161,8 @@ BEGIN
         THROW 50001, 'Item not found or quantity would go below zero.', 1;
     END
 
-    INSERT INTO dbo.InventoryLogs (ItemID, UserID, LogType, Quantity, LogDate, Notes)
-    VALUES (@ItemID, @UserID, 'Adjust', @Change, SYSUTCDATETIME(), @Notes);
+    INSERT INTO dbo.InventoryLogs (ItemID, UserID, ProcessedByID, LogType, Quantity, LogDate, Notes)
+    VALUES (@ItemID, @UserID, @UserID, @LogType, @LogQty, SYSUTCDATETIME(), @Notes);
 
     COMMIT;
 END;

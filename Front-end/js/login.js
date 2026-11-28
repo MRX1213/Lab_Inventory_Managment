@@ -1,44 +1,40 @@
-var ACCOUNTS = [
-  { email: "deep.patel@example.edu", password: "password123", firstName: "Deep", lastName: "Patel", role: "Admin" },
-  { email: "beau.smith@example.edu", password: "password123", firstName: "Beau", lastName: "Smith", role: "Full-time Lab Worker" },
-  { email: "sam.rivera@example.edu", password: "password123", firstName: "Sam", lastName: "Rivera", role: "Student Worker" },
-];
+const loginForm = document.getElementById("login-form");
+const errorMessage = document.getElementById("error-message");
+const forgotLink = document.getElementById("forgot-password-link");
 
-var loginForm = document.getElementById("login-form");
-var errorMessage = document.getElementById("error-message");
-
-if (sessionStorage.getItem("currentUser")) {
-  window.location.href = "dashboard.html";
-}
-
-loginForm.addEventListener("submit", function (event) {
+loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-
-  var email = document.getElementById("email").value;
-  var password = document.getElementById("password").value;
   errorMessage.textContent = "";
-
-  if (email === "" || password === "") {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  if (!email || !password) {
     errorMessage.textContent = "Email and password are required.";
     return;
   }
-
-  var account = ACCOUNTS.find(
-    (a) => a.email.toLowerCase() === email.trim().toLowerCase() && a.password === password
-  );
-
-  if (!account) {
+  try {
+    const { data } = await window.labApi.apiFetch("/auth/login", {
+      method: "POST",
+      body: { email, password },
+    });
+    window.labApi.setCsrfToken(data.csrfToken);
+    sessionStorage.setItem(
+      "displayUser",
+      JSON.stringify({
+        userId: data.user.userId,
+        firstName: data.user.firstName,
+        lastName: data.user.lastName,
+        email: data.user.email,
+        role: data.user.role,
+      }),
+    );
+    window.location.href = "dashboard.html";
+  } catch {
     errorMessage.textContent = "Incorrect email or password.";
-    return;
   }
-
-  var safeUser = { firstName: account.firstName, lastName: account.lastName, email: account.email, role: account.role };
-  sessionStorage.setItem("currentUser", JSON.stringify(safeUser));
-  window.location.href = "dashboard.html";
 });
 
-var forgotLink = document.getElementById("forgot-password-link");
-forgotLink.addEventListener("click", function (event) {
+forgotLink.addEventListener("click", (event) => {
   event.preventDefault();
-  errorMessage.textContent = "Password reset isn't available yet - contact an Admin.";
+  errorMessage.textContent =
+    "Password reset is not available — no email or SMS delivery is configured. Contact an Admin.";
 });

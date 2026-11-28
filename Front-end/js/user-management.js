@@ -1,17 +1,20 @@
-// User Management page — placeholder data only, not connected to the real database yet.
-// current-user.js (loaded before this file) already handles auth/role display —
-// no login check needed here.
-// Once Jaden's API is ready, swap the mock `users` array + localStorage below for real fetch() calls
-// to the Users/Roles tables (UserID, FirstName, LastName, Email, Phone, RoleID, IsActive).
+// User Management — Admin API.
 
-let users = [
-  { id: 1, firstName: "Deep", lastName: "", email: "deep.patel@example.edu", phone: "814-555-0101", role: "Admin", active: true, created: "2026-09-02" },
-  { id: 2, firstName: "Beau", lastName: "", email: "beau.morgan@example.edu", phone: "814-555-0102", role: "Admin", active: true, created: "2026-09-02" },
-  { id: 3, firstName: "Jaden", lastName: "", email: "jaden.nye@example.edu", phone: "814-555-0103", role: "Admin", active: true, created: "2026-09-02" },
-  { id: 4, firstName: "Andrii", lastName: "", email: "andrii.varlamov@example.edu", phone: "814-555-0105", role: "Admin", active: true, created: "2026-09-02" },
-];
+let users = [];
 
-let nextId = 5;
+async function loadUsers() {
+  const { data } = await window.labApi.apiFetch("/admin/users");
+  users = data.users.map((u) => ({
+    id: u.userId,
+    firstName: u.firstName,
+    lastName: u.lastName,
+    email: u.email,
+    phone: u.phone || "",
+    role: u.role,
+    active: u.isActive,
+    created: u.createdAt || "—",
+  }));
+}
 let deleteTargetId = null;
 
 const tableBody = document.getElementById("userTableBody");
@@ -98,12 +101,26 @@ tableBody.addEventListener("click", (e) => {
   if (action === "delete") openDeleteModal(id);
 });
 
-function toggleActive(id) {
+async function toggleActive(id) {
   const user = users.find((u) => u.id === id);
-  if (user) {
-    user.active = !user.active;
+  if (!user) return;
+  try {
+    await window.labApi.apiFetch(`/admin/users/${id}`, {
+      method: "PUT",
+      body: {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        isActive: !user.active,
+      },
+    });
+    await loadUsers();
     renderTable();
-    showNotice(`${user.firstName} ${user.lastName} ${user.active ? "unblocked" : "blocked"}.`, "success");
+    showNotice(`${user.firstName} ${user.lastName} ${!user.active ? "unblocked" : "blocked"}.`, "success");
+  } catch (err) {
+    showNotice(err.message || "Update failed.", "error");
   }
 }
 
@@ -138,43 +155,40 @@ function closeUserModal() {
   userModal.style.display = "none";
 }
 
-userForm.addEventListener("submit", (e) => {
+userForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const id = userIdField.value ? Number(userIdField.value) : null;
-
   const password = passwordField.value;
-
-  if (id) {
-    const user = users.find((u) => u.id === id);
-    if (user) {
-      user.firstName = firstNameField.value.trim();
-      user.lastName = lastNameField.value.trim();
-      user.email = emailField.value.trim();
-      user.phone = phoneField.value.trim();
-      user.role = roleField.value;
-      if (password) {
-        // TODO: PUT /api/users/:id/password (or similar) with the new password.
-        // Do not store it on the local `user` object.
+  const body = {
+    firstName: firstNameField.value.trim(),
+    lastName: lastNameField.value.trim(),
+    email: emailField.value.trim(),
+    phone: phoneField.value.trim(),
+    role: roleField.value,
+    isActive: true,
+    ...(password ? { password } : {}),
+  };
+  try {
+    if (id) {
+      const user = users.find((u) => u.id === id);
+      await window.labApi.apiFetch(`/admin/users/${id}`, {
+        method: "PUT",
+        body: { ...body, isActive: user?.active !== false },
+      });
+      showNotice("User updated.", "success");
+    } else {
+      if (!password || password.length < 8) {
+        showNotice("Initial password must be at least 8 characters.", "error");
+        return;
       }
+      await window.labApi.apiFetch("/admin/users", { method: "POST", body });
+      showNotice("User added.", "success");
     }
+    await loadUsers();
     closeUserModal();
     renderTable();
-    showNotice("User updated.", "success");
-  } else {
-    users.push({
-      id: nextId++,
-      firstName: firstNameField.value.trim(),
-      lastName: lastNameField.value.trim(),
-      email: emailField.value.trim(),
-      phone: phoneField.value.trim(),
-      role: roleField.value,
-      active: true,
-      created: new Date().toISOString().slice(0, 10),
-      // TODO: POST password to the create-user endpoint; not stored in this mock object.
-    });
-    closeUserModal();
-    renderTable();
-    showNotice("User added.", "success");
+  } catch (err) {
+    showNotice(err.message || "Save failed.", "error");
   }
 });
 
@@ -191,12 +205,17 @@ function closeDeleteModal() {
   deleteTargetId = null;
 }
 
-document.getElementById("deleteConfirmBtn").addEventListener("click", () => {
+document.getElementById("deleteConfirmBtn").addEventListener("click", async () => {
   if (deleteTargetId !== null) {
     const user = users.find((u) => u.id === deleteTargetId);
-    users = users.filter((u) => u.id !== deleteTargetId);
-    renderTable();
-    showNotice(`${user ? user.firstName + " " + user.lastName : "User"} deleted.`, "success");
+    try {
+      await window.labApi.apiFetch(`/admin/users/${deleteTargetId}`, { method: "DELETE", body: {} });
+      await loadUsers();
+      renderTable();
+      showNotice(`${user ? user.firstName + " " + user.lastName : "User"} deactivated.`, "success");
+    } catch (err) {
+      showNotice(err.message || "Delete failed.", "error");
+    }
   }
   closeDeleteModal();
 });
@@ -208,4 +227,16 @@ searchInput.addEventListener("input", renderTable);
 roleFilter.addEventListener("change", renderTable);
 statusFilter.addEventListener("change", renderTable);
 
-renderTable();
+(async function initUserManagement() {
+  await window.labAuthReady;
+  if (!hasRole(ROLES.admin)) {
+    window.location.href = "dashboard.html";
+    return;
+  }
+  try {
+    await loadUsers();
+    renderTable();
+  } catch (e) {
+    showNotice(e.message || "Load failed.", "error");
+  }
+})();

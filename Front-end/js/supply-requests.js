@@ -1,62 +1,46 @@
-// Supply Requests page — placeholder data only, not connected to the real database yet.
-// Everyone can make requests and see their own. Admins and full-time lab workers
-// see everyone's and can approve or reject them.
+// Supply Requests — SQL Server via /api.
 
-// same sample spaces, locations, and items as the inventory page
-// (will come from /api/spaces, /api/locations, and /api/items later)
-let spaces = [
-  { id: 1, name: "Makerspace" },
-  { id: 2, name: "Project Room" },
-];
+let spaces = [];
+let locations = [];
+let items = [];
+let requests = [];
+let requestSummary = { pending: 0, approved: 0, rejected: 0 };
 
-let locations = [
-  { id: 1, spaceId: 1, name: "3D Printer Area" },
-  { id: 2, spaceId: 1, name: "Laser Cutter Area" },
-  { id: 3, spaceId: 1, name: "Shelf" },
-  { id: 4, spaceId: 2, name: "Shelf" },
-  { id: 6, spaceId: 2, name: "Side Shelves" },
-  { id: 5, spaceId: 2, name: "Wood Cutting Station" },
-];
-
-let items = [
-  { id: 1, name: "PLA Black", locationId: 1 },
-  { id: 2, name: "ABS Red", locationId: 1 },
-  { id: 3, name: "Nozzle 0.4mm", locationId: 1 },
-  { id: 4, name: "AA Batteries", locationId: 3 },
-  { id: 5, name: "HDMI Cable 6ft", locationId: 3 },
-  { id: 6, name: "Plywood Sheet", locationId: 2 },
-  { id: 7, name: "2x4 Softwood", locationId: 5 },
-  { id: 8, name: "Safety Glasses", locationId: 4 },
-];
-
-// names for the sample requests (will come from the Users table later)
-let users = [
-  { email: "student@lab.edu", name: "Test Student", role: "Student Worker" },
-  { email: "fulltime@lab.edu", name: "Test Worker", role: "Full-time Lab Worker" },
-  { email: "admin@lab.edu", name: "Test Admin", role: "Admin" },
-  { email: "jmiller@lab.edu", name: "Jordan Miller", role: "Student Worker" },
-];
-
-// itemId null = they asked for something new (newItemName)
-// targetAreaId = which location it's for (TargetAreaID in the database).
-//   existing item: the item's own location. new item: picked by the person
-// dates are UTC (the "Z" at the end) and shown in Eastern time by js/datetime-display.js
-let requests = [
-  { id: 1, itemId: 2, newItemName: "", targetAreaId: 1, qty: 5, reason: "Two big prints coming up",
-    requestedBy: "student@lab.edu", createdAt: "2026-10-12T18:20:00Z", status: "Pending",
-    decidedBy: "", decisionNotes: "", decidedAt: "" },
-  { id: 2, itemId: null, newItemName: "Wood glue (16 oz)", targetAreaId: 5, qty: 2, reason: "None in the project room",
-    requestedBy: "jmiller@lab.edu", createdAt: "2026-10-10T14:05:00Z", status: "Approved",
-    decidedBy: "fulltime@lab.edu", decisionNotes: "Ordering with the next batch", decidedAt: "2026-10-11T13:00:00Z" },
-  { id: 3, itemId: 5, newItemName: "", targetAreaId: 3, qty: 6, reason: "Arduino workshop next week",
-    requestedBy: "student@lab.edu", createdAt: "2026-10-08T20:40:00Z", status: "Rejected",
-    decidedBy: "admin@lab.edu", decisionNotes: "We can borrow some from the CS lab", decidedAt: "2026-10-09T12:30:00Z" },
-  { id: 4, itemId: 4, newItemName: "", targetAreaId: 3, qty: 24, reason: "Restock for the soldering kits",
-    requestedBy: "fulltime@lab.edu", createdAt: "2026-10-14T15:15:00Z", status: "Pending",
-    decidedBy: "", decisionNotes: "", decidedAt: "" },
-];
-
-let nextId = 100;
+async function loadSupplyPageData() {
+  const [ar, it, req] = await Promise.all([
+    window.labApi.apiFetch("/areas"),
+    window.labApi.apiFetch("/items?stock=all"),
+    window.labApi.apiFetch("/requests"),
+  ]);
+  locations = ar.data.areas.map((a) => ({
+    id: a.areaId,
+    spaceId: a.spaceId,
+    name: a.areaName,
+    displayLabel: a.displayLabel,
+  }));
+  spaces = [...new Set(locations.map((l) => l.spaceId))]; // minimal
+  items = it.data.items.map((i) => ({
+    id: i.itemId,
+    name: i.itemName,
+    locationId: i.areaId,
+  }));
+  requestSummary = req.data.summary || requestSummary;
+  requests = req.data.requests.map((r) => ({
+    id: r.requestId,
+    itemId: r.itemId,
+    newItemName: r.newItemName || "",
+    targetAreaId: r.targetAreaId,
+    qty: r.requestedQuantity,
+    reason: r.reason,
+    requestedBy: r.requestedByEmail || String(r.requestedById),
+    createdAt: r.createdAt,
+    status: r.status,
+    decidedBy: r.decidedByEmail || "",
+    decisionNotes: r.decisionNotes || "",
+    decidedAt: r.decidedAt || "",
+    rowVersion: r.rowVersion,
+  }));
+}
 let decision = null;   // { id, status } while the approve/reject popup is open
 let submitting = false; // true while a request is being saved (stops double submits)
 
@@ -91,7 +75,7 @@ const decisionSaveBtn = document.getElementById("decision-save-btn");
 
 // escapeHtml() and showNotice() come from js/notices.js
 
-const findUser = (email) => users.find((u) => u.email === email) || { email, name: email, role: "Student Worker" };
+const findUser = (email) => ({ email, name: email ? email.split("@")[0] : "Unknown" });
 
 function itemName(request) {
   if (request.itemId === null) return request.newItemName;
@@ -103,7 +87,7 @@ function itemName(request) {
 function locationName(id) {
   const loc = locations.find((l) => l.id === id);
   if (!loc) return "";
-  return spaces.find((s) => s.id === loc.spaceId).name + " - " + loc.name;
+  return loc.displayLabel || loc.name;
 }
 
 // right now, as a UTC ISO string (the backend will set this later)
@@ -111,8 +95,8 @@ const now = () => new Date().toISOString();
 
 // ---------- who is logged in (from js/current-user.js) ----------
 
-const currentEmail = currentUser.email;
-const canReview = hasRole(ROLES.admin, ROLES.fullTime);
+let currentEmail = "";
+let canReview = false;
 
 // ---------- cards + table ----------
 
@@ -120,10 +104,9 @@ const canReview = hasRole(ROLES.admin, ROLES.fullTime);
 const visibleRequests = () => requests.filter((r) => canReview || r.requestedBy === currentEmail);
 
 function renderCards() {
-  const count = (status) => visibleRequests().filter((r) => r.status === status).length;
-  document.getElementById("pending-count").textContent = count("Pending");
-  document.getElementById("approved-count").textContent = count("Approved");
-  document.getElementById("rejected-count").textContent = count("Rejected");
+  document.getElementById("pending-count").textContent = String(requestSummary.pending ?? 0);
+  document.getElementById("approved-count").textContent = String(requestSummary.approved ?? 0);
+  document.getElementById("rejected-count").textContent = String(requestSummary.rejected ?? 0);
 }
 
 function renderTable() {
@@ -249,16 +232,15 @@ function closeRequestModal() {
   requestModal.style.display = "none";
 }
 
-requestForm.addEventListener("submit", (e) => {
+requestForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  if (submitting) return; // already saving, ignore extra clicks
+  if (submitting) return;
 
   const isNew = requestType() === "new";
   const newName = newItemField.value.trim();
   const qty = Number(qtyField.value);
   const reason = reasonField.value.trim();
 
-  // check the form before saving
   let error = "";
   const targetAreaId = Number(requestLocationField.value);
   if (isNew && !newName) error = "Type the name of the item you need.";
@@ -271,35 +253,32 @@ requestForm.addEventListener("submit", (e) => {
     return;
   }
 
-  // turn the button off while saving.
-  // TODO: POST /api/requests. When that's a fetch(), turn the button back on in .finally(),
-  // and only close the popup if it worked (keep the form filled in if it failed)
   submitting = true;
   requestSubmitBtn.disabled = true;
   requestSubmitBtn.textContent = "Submitting...";
 
-  requests.push({
-    id: nextId++,
-    itemId: isNew ? null : Number(requestItemField.value),
-    newItemName: isNew ? newName : "",
-    targetAreaId,
-    qty,
-    reason,
-    requestedBy: currentEmail,
-    createdAt: now(),
-    status: "Pending",
-    decidedBy: "",
-    decisionNotes: "",
-    decidedAt: "",
-  });
-
-  submitting = false;
-  requestSubmitBtn.disabled = false;
-  requestSubmitBtn.textContent = "Submit request";
-
-  closeRequestModal();
-  renderTable();
-  showNotice("Request submitted. It shows as Pending until someone reviews it.", "success");
+  try {
+    const body = {
+      requestedQuantity: qty,
+      reason,
+      targetAreaId,
+      ...(isNew
+        ? { newItemName: newName }
+        : { itemId: Number(requestItemField.value) }),
+    };
+    await window.labApi.apiFetch("/requests", { method: "POST", body });
+    await loadSupplyPageData();
+    closeRequestModal();
+    renderTable();
+    showNotice("Request submitted. It shows as Pending until someone reviews it.", "success");
+  } catch (err) {
+    requestError.textContent = err.message || "Submit failed.";
+    requestError.style.display = "block";
+  } finally {
+    submitting = false;
+    requestSubmitBtn.disabled = false;
+    requestSubmitBtn.textContent = "Submit request";
+  }
 });
 
 // ---------- approve / reject popup ----------
@@ -321,19 +300,26 @@ function closeDecisionModal() {
   decision = null;
 }
 
-document.getElementById("decision-form").addEventListener("submit", (e) => {
+document.getElementById("decision-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  if (decision) {
-    // TODO: PUT /api/requests/:id with the status and notes
-    const r = requests.find((req) => req.id === decision.id);
-    r.status = decision.status;
-    r.decidedBy = currentEmail;
-    r.decisionNotes = decisionNotesField.value.trim();
-    r.decidedAt = now();
+  if (!decision) return;
+  const r = requests.find((req) => req.id === decision.id);
+  try {
+    await window.labApi.apiFetch(`/requests/${decision.id}/decision`, {
+      method: "PATCH",
+      body: {
+        status: decision.status,
+        decisionNotes: decisionNotesField.value.trim(),
+        rowVersion: r.rowVersion,
+      },
+    });
+    await loadSupplyPageData();
     renderTable();
     showNotice(`${decision.status} request #${r.id}.`, "success");
+    closeDecisionModal();
+  } catch (err) {
+    showNotice(err.message || "Decision failed.", "error");
   }
-  closeDecisionModal();
 });
 
 // ---------- refresh ----------
@@ -344,10 +330,14 @@ function isPopupOpen() {
   return requestModal.style.display === "flex" || decisionModal.style.display === "flex";
 }
 
-function refreshRequests() {
-  // TODO: GET /api/requests, then put the results in `requests` before rendering
-  renderTable();
-  lastUpdated.textContent = `Updated ${formatDateTime(now())}`;
+async function refreshRequests() {
+  try {
+    await loadSupplyPageData();
+    renderTable();
+    lastUpdated.textContent = `Updated ${formatDateTime(now())}`;
+  } catch (e) {
+    showNotice(e.message || "Refresh failed.", "error");
+  }
 }
 
 document.getElementById("refresh-btn").addEventListener("click", refreshRequests);
@@ -364,12 +354,6 @@ window.addEventListener("pageshow", (e) => {
 
 // ---------- start ----------
 
-// students don't get the Actions column
-if (!canReview) document.querySelector("th.reviewer-only").remove();
-
-// reviewers start on what still needs a decision
-if (canReview) statusFilter.value = "Pending";
-
 document.getElementById("new-request-btn").addEventListener("click", openRequestModal);
 document.getElementById("request-cancel-btn").addEventListener("click", closeRequestModal);
 document.getElementById("decision-cancel-btn").addEventListener("click", closeDecisionModal);
@@ -379,4 +363,11 @@ document.addEventListener("keydown", (e) => {
 searchInput.addEventListener("input", renderTable);
 statusFilter.addEventListener("change", renderTable);
 
-refreshRequests();
+(async function initSupplyPage() {
+  await window.labAuthReady;
+  currentEmail = currentUser.email;
+  canReview = hasRole(ROLES.admin, ROLES.fullTime);
+  if (!canReview) document.querySelector("th.reviewer-only")?.remove();
+  if (canReview) statusFilter.value = "Pending";
+  await refreshRequests();
+})();

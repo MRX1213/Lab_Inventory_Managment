@@ -1,19 +1,29 @@
-// Locations page — placeholder data only, not connected to the real database yet.
-// current-user.js (loaded before this file) already handles auth/role display —
-// no login check needed here.
-// Once the API is ready, swap the mock `locations` array below for real fetch() calls
-// to the Locations table (LocationID, Space, Name). "itemCount" below is a placeholder
-// for the count of inventory items assigned to this location — that join comes from
-// the Inventory table once the teammate's Inventory page/API exists.
+// Locations (Areas) — SQL Server via /api.
 
-let locations = [
-  { id: 1, space: "Makerspace", name: "Bench A", itemCount: 12, created: "2026-09-02" },
-  { id: 2, space: "Makerspace", name: "Bench B", itemCount: 7, created: "2026-09-02" },
-  { id: 3, space: "Project Room", name: "Storage Shelf 2", itemCount: 0, created: "2026-09-15" },
-  { id: 4, space: "Makerspace", name: "3D Printing Cart", itemCount: 4, created: "2026-10-01" },
-];
+let locations = [];
+const spaceById = new Map();
+const spaceByName = new Map();
 
-let nextId = 5;
+async function loadLocations() {
+  const [{ data: sp }, { data: ar }] = await Promise.all([
+    window.labApi.apiFetch("/spaces"),
+    window.labApi.apiFetch("/areas"),
+  ]);
+  spaceById.clear();
+  spaceByName.clear();
+  sp.spaces.forEach((s) => {
+    spaceById.set(s.spaceId, s.spaceName);
+    spaceByName.set(s.spaceName, s.spaceId);
+  });
+  locations = ar.areas.map((a) => ({
+    id: a.areaId,
+    spaceId: a.spaceId,
+    space: spaceById.get(a.spaceId) || "",
+    name: a.areaName,
+    itemCount: a.itemCount ?? 0,
+    created: "—",
+  }));
+}
 let deleteTargetId = null;
 
 const tableBody = document.getElementById("locationTableBody");
@@ -108,30 +118,24 @@ function closeLocationModal() {
   locationModal.style.display = "none";
 }
 
-locationForm.addEventListener("submit", (e) => {
+locationForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const id = locationIdField.value ? Number(locationIdField.value) : null;
-
-  if (id) {
-    const loc = locations.find((l) => l.id === id);
-    if (loc) {
-      loc.space = spaceField.value;
-      loc.name = nameField.value.trim();
+  const spaceId = spaceByName.get(spaceField.value);
+  const areaName = nameField.value.trim();
+  try {
+    if (id) {
+      await window.labApi.apiFetch(`/areas/${id}`, { method: "PUT", body: { areaName } });
+      showNotice("Location updated.", "success");
+    } else {
+      await window.labApi.apiFetch("/areas", { method: "POST", body: { spaceId, areaName } });
+      showNotice("Location added.", "success");
     }
+    await loadLocations();
     closeLocationModal();
     renderTable();
-    showNotice("Location updated.", "success");
-  } else {
-    locations.push({
-      id: nextId++,
-      space: spaceField.value,
-      name: nameField.value.trim(),
-      itemCount: 0,
-      created: new Date().toISOString().slice(0, 10),
-    });
-    closeLocationModal();
-    renderTable();
-    showNotice("Location added.", "success");
+  } catch (err) {
+    showNotice(err.message || "Save failed.", "error");
   }
 });
 
@@ -149,12 +153,17 @@ function closeDeleteModal() {
   deleteTargetId = null;
 }
 
-document.getElementById("deleteConfirmBtn").addEventListener("click", () => {
+document.getElementById("deleteConfirmBtn").addEventListener("click", async () => {
   if (deleteTargetId !== null) {
     const loc = locations.find((l) => l.id === deleteTargetId);
-    locations = locations.filter((l) => l.id !== deleteTargetId);
-    renderTable();
-    showNotice(`"${loc ? loc.name : "Location"}" deleted.`, "success");
+    try {
+      await window.labApi.apiFetch(`/areas/${deleteTargetId}`, { method: "DELETE", body: {} });
+      await loadLocations();
+      renderTable();
+      showNotice(`"${loc ? loc.name : "Location"}" deleted.`, "success");
+    } catch (err) {
+      showNotice(err.message || "Delete failed.", "error");
+    }
   }
   closeDeleteModal();
 });
@@ -165,4 +174,12 @@ document.getElementById("cancelBtn").addEventListener("click", closeLocationModa
 searchInput.addEventListener("input", renderTable);
 spaceFilter.addEventListener("change", renderTable);
 
-renderTable();
+(async function initLocationsPage() {
+  await window.labAuthReady;
+  try {
+    await loadLocations();
+    renderTable();
+  } catch (e) {
+    showNotice(e.message || "Load failed.", "error");
+  }
+})();
